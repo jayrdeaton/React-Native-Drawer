@@ -7,6 +7,9 @@ import Animated, { SharedValue, useAnimatedStyle, useSharedValue, withSpring } f
 const SPRING = { damping: 40, stiffness: 300, overshootClamping: true }
 
 export type DrawerProps = {
+  // Renders edge-to-edge behind the status bar/notch/home indicator, deliberately — pad your own
+  // content with useSafeAreaInsets() (or a safe-area-aware header like @rific/scroll-view's) rather
+  // than have this component impose a strategy that might double up with one you're already using.
   children?: ReactNode
   onClose: () => void
   open: boolean
