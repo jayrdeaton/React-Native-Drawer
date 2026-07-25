@@ -25,9 +25,11 @@ export const DrawerEdgeSwipe = ({ enabled = true, onOpen, side = 'left', transla
     .activeOffsetX(side === 'left' ? 10 : -10)
     .failOffsetY([-15, 15])
     .onUpdate((event) => {
+      'worklet'
       translateX.value = Math.min(clampMax, Math.max(clampMin, closedX + event.translationX))
     })
     .onEnd((event) => {
+      'worklet'
       const commit = event.translationX * openDirection > width / 3 || event.velocityX * openDirection > VELOCITY_THRESHOLD
       if (commit) {
         translateX.value = withSpring(0, SPRING)
