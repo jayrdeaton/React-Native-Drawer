@@ -2,7 +2,7 @@ import React from 'react'
 
 const stub = ({ children }: { children?: React.ReactNode }) => children ?? null
 
-type PanEvent = { translationX: number; velocityX: number }
+type PanEvent = { translationX: number; translationY: number; velocityX: number; velocityY: number }
 
 // A minimal stand-in for react-native-gesture-handler's chainable Gesture.Pan() builder.
 // __getHandlers() is a test-only escape hatch (not part of the real API) so specs can invoke
@@ -18,6 +18,14 @@ class PanGestureBuilder {
   }
 
   activeOffsetX() {
+    return this
+  }
+
+  activeOffsetY() {
+    return this
+  }
+
+  failOffsetX() {
     return this
   }
 

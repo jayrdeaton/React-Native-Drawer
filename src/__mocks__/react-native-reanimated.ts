@@ -9,7 +9,12 @@ export const useSharedValue = (initial: number) => {
 
 export const useAnimatedStyle = (factory: () => Record<string, unknown>) => factory()
 
-export const withSpring = (toValue: number) => toValue
+// A jest.fn (rather than a plain function) so specs can pull the finished-callback (3rd arg) off
+// withSpring.mock.calls and invoke it manually to simulate an animation settling — mirroring the
+// __getHandlers() escape hatch the gesture-handler mock uses for onUpdate/onEnd.
+export const withSpring = jest.fn((toValue: number, _config?: unknown, _callback?: (finished?: boolean) => void) => toValue)
+
+export const withTiming = (toValue: number) => toValue
 
 export const runOnJS =
   <Args extends unknown[], Return>(fn: (...args: Args) => Return) =>

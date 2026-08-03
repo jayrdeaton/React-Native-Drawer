@@ -59,6 +59,7 @@
     "preversion": "npm run lint && npm test && npm run build"
   },
   "devDependencies": {
+    "@rific/auto-paper": "^0.7.0",
     "@rific/haptic-press": "^0.4.3",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
@@ -87,12 +88,18 @@
     "typescript-eslint": "^8.59.3"
   },
   "peerDependencies": {
+    "@rific/auto-paper": ">=0.7.0",
     "@rific/haptic-press": ">=0.4.0",
     "react": ">=18.0.0",
     "react-native": ">=0.76.0",
     "react-native-gesture-handler": ">=2.20.0",
     "react-native-paper": ">=5.0.0",
     "react-native-reanimated": ">=3.16.0"
+  },
+  "peerDependenciesMeta": {
+    "@rific/auto-paper": {
+      "optional": true
+    }
   },
   "publishConfig": {
     "access": "public"
