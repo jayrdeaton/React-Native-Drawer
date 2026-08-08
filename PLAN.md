@@ -1,1 +1,0 @@
-I want to remove bottom sheet optional dependency and use my own @rific/drawer instead
