@@ -8,7 +8,7 @@ describe('combineDrawerProviders', () => {
     const nav = createDrawer({ side: 'left' })
     const settings = createDrawer({ side: 'right' })
 
-    const AllDrawers = combineDrawerProviders([nav.DrawerProvider, { content: <div data-testid='nav-content'>nav</div> }], [settings.DrawerProvider, { content: <div data-testid='settings-content'>settings</div> }])
+    const AllDrawers = combineDrawerProviders([nav.DrawerInstanceProvider, { content: <div data-testid='nav-content'>nav</div> }], [settings.DrawerInstanceProvider, { content: <div data-testid='settings-content'>settings</div> }])
 
     render(
       <AllDrawers>
@@ -24,7 +24,7 @@ describe('combineDrawerProviders', () => {
   it('keeps each drawer independently stateful after combining', () => {
     const nav = createDrawer()
     const settings = createDrawer()
-    const AllDrawers = combineDrawerProviders([nav.DrawerProvider], [settings.DrawerProvider])
+    const AllDrawers = combineDrawerProviders([nav.DrawerInstanceProvider], [settings.DrawerInstanceProvider])
 
     const Consumer = () => {
       const navState = nav.useDrawer()

@@ -129,4 +129,76 @@ describe('DrawerEdgeSwipe', () => {
     expect(style.width).toBeUndefined()
     expect(style.top).toBeUndefined()
   })
+
+  it('resolves a percentage height against the window height', () => {
+    const translateOffset = sharedValue(400)
+    render(<DrawerEdgeSwipe height='50%' onOpen={jest.fn()} side='bottom' translateOffset={translateOffset} />)
+
+    // The mocked window is 800 tall; a commit should clamp to -50% of that, i.e. 400.
+    const { onUpdate } = lastGesture()
+    onUpdate?.(verticalEvent(-1000, 0))
+    expect(translateOffset.value).toBe(0)
+  })
+
+  it('opens to the rest offset, not full expansion, when maxHeight is set', () => {
+    const onOpen = jest.fn()
+    const translateOffset = sharedValue(800)
+    render(<DrawerEdgeSwipe height={300} maxHeight={800} onOpen={onOpen} side='bottom' translateOffset={translateOffset} />)
+
+    // Past a third of the 300px rest size (not the 800px maxHeight), dragged up (opening a bottom sheet).
+    lastGesture().onEnd?.(verticalEvent(-150, 0))
+
+    expect(onOpen).toHaveBeenCalledTimes(1)
+    // Lands at restOffset (800 - 300 = 500), not 0: DrawerEdgeSwipe only opens to rest, matching
+    // Drawer's own tap-to-open behavior — expanding further is only ever done via Drawer's handle.
+    expect(translateOffset.value).toBe(500)
+  })
+
+  it('clamps a drag to [closedOffset, 0] using maxHeight, not the smaller rest height', () => {
+    const translateOffset = sharedValue(800)
+    render(<DrawerEdgeSwipe height={300} maxHeight={800} onOpen={jest.fn()} side='bottom' translateOffset={translateOffset} />)
+
+    const { onUpdate } = lastGesture()
+    onUpdate?.(verticalEvent(-2000, 0))
+    expect(translateOffset.value).toBe(0)
+
+    onUpdate?.(verticalEvent(2000, 0))
+    expect(translateOffset.value).toBe(800)
+  })
+
+  describe('edgeInset', () => {
+    it('shrinks the basis a percentage maxHeight resolves against, capping the clamp range short of the true edge — kept in sync with a same-configured Drawer', () => {
+      const translateOffset = sharedValue(750)
+      render(<DrawerEdgeSwipe edgeInset={50} height='50%' maxHeight='100%' onOpen={jest.fn()} side='bottom' translateOffset={translateOffset} />)
+
+      // maxEffectiveSize resolves to 750 (100% of the 800 window - 50 inset), so a closed drag can
+      // only reach that, not the true 800 a same-configured Drawer (see its own edgeInset test)
+      // would also stop short of.
+      const { onUpdate } = lastGesture()
+      onUpdate?.(verticalEvent(2000, 0))
+      expect(translateOffset.value).toBe(750)
+
+      onUpdate?.(verticalEvent(-2000, 0))
+      expect(translateOffset.value).toBe(0)
+    })
+
+    it('leaves a literal pixel maxHeight untouched, even with edgeInset set', () => {
+      const translateOffset = sharedValue(800)
+      render(<DrawerEdgeSwipe edgeInset={50} height={300} maxHeight={800} onOpen={jest.fn()} side='bottom' translateOffset={translateOffset} />)
+
+      // Still clamps to the literal 800, not 750: a plain number opts back out of edgeInset.
+      const { onUpdate } = lastGesture()
+      onUpdate?.(verticalEvent(2000, 0))
+      expect(translateOffset.value).toBe(800)
+    })
+
+    it('has no effect when omitted, matching prior behavior', () => {
+      const translateOffset = sharedValue(800)
+      render(<DrawerEdgeSwipe height={300} maxHeight={800} onOpen={jest.fn()} side='bottom' translateOffset={translateOffset} />)
+
+      const { onUpdate } = lastGesture()
+      onUpdate?.(verticalEvent(2000, 0))
+      expect(translateOffset.value).toBe(800)
+    })
+  })
 })

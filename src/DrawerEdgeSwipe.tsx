@@ -2,25 +2,38 @@ import { StyleSheet, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { runOnJS, SharedValue, withSpring } from 'react-native-reanimated'
 
-import { type DrawerSide, getClosedOffset, getOpenDirection, isVerticalSide } from './geometry'
+import { type DrawerDimension, type DrawerSide, getOpenDirection, isVerticalSide } from './geometry'
+import { useDrawerSize } from './useDrawerSize'
 
 const EDGE_WIDTH = 24
-const SPRING = { damping: 40, overshootClamping: true, stiffness: 300 }
+// Kept identical to Drawer.tsx's own SPRING (see its comment for the reasoning) so an
+// edge-swipe-opened drawer settles at the same rate as a tap-opened one.
+const SPRING = { damping: 45, overshootClamping: true, stiffness: 500, restDisplacementThreshold: 0.5, restSpeedThreshold: 10 }
 const VELOCITY_THRESHOLD = 500
 
 export type DrawerEdgeSwipeProps = {
+  // Mirrors Drawer's own edgeInset: keep both in sync (same value) so this gesture's clamp/rest
+  // math agrees with the panel it's driving. See Drawer's own doc comment for the full rationale
+  // (in short: shrinks the basis a *percentage* height/maxHeight/width/maxWidth resolves against; a
+  // literal px number is unaffected).
+  edgeInset?: number
   enabled?: boolean
-  height?: number
+  height?: DrawerDimension
+  // Mirrors Drawer's own maxHeight: when set, an edge swipe still only opens to `height` (the rest
+  // size), not all the way to this ceiling — matching Drawer's tap-to-open behavior, which also
+  // lands at rest. Reaching past rest, up to maxHeight, is only ever done via Drawer's own handle.
+  maxHeight?: DrawerDimension
+  // The maxWidth mirror of maxHeight, for `left`/`right` drawers.
+  maxWidth?: DrawerDimension
   onOpen: () => void
   side?: DrawerSide
   translateOffset: SharedValue<number>
-  width?: number
+  width?: DrawerDimension
 }
 
-export const DrawerEdgeSwipe = ({ enabled = true, height = 300, onOpen, side = 'left', translateOffset, width = 300 }: DrawerEdgeSwipeProps) => {
+export const DrawerEdgeSwipe = ({ edgeInset = 0, enabled = true, height = 300, maxHeight, maxWidth, onOpen, side = 'left', translateOffset, width = 300 }: DrawerEdgeSwipeProps) => {
   const vertical = isVerticalSide(side)
-  const size = vertical ? height : width
-  const closedOffset = getClosedOffset(side, size)
+  const { closedOffset, effectiveSize, restOffset } = useDrawerSize(side, vertical ? height : width, vertical ? maxHeight : maxWidth, edgeInset)
   const openDirection = getOpenDirection(side)
   const clampMin = Math.min(0, closedOffset)
   const clampMax = Math.max(0, closedOffset)
@@ -44,9 +57,9 @@ export const DrawerEdgeSwipe = ({ enabled = true, height = 300, onOpen, side = '
       'worklet'
       const translation = vertical ? event.translationY : event.translationX
       const velocity = vertical ? event.velocityY : event.velocityX
-      const commit = translation * openDirection > size / 3 || velocity * openDirection > VELOCITY_THRESHOLD
+      const commit = translation * openDirection > effectiveSize / 3 || velocity * openDirection > VELOCITY_THRESHOLD
       if (commit) {
-        translateOffset.value = withSpring(0, SPRING)
+        translateOffset.value = withSpring(restOffset, SPRING)
         runOnJS(onOpen)()
       } else {
         translateOffset.value = withSpring(closedOffset, SPRING)

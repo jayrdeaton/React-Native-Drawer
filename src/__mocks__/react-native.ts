@@ -12,7 +12,7 @@ export { StyleSheet }
 
 export const View = jest.fn(stub)
 
-// Only .OS is read anywhere in this package (Drawer.tsx's webCursorStyle) — defaulted to 'ios' so
+// Only .OS is read anywhere in this package (Drawer.tsx's webCursorStyle): defaulted to 'ios' so
 // that branch resolves the same way it would on a real native device, not the web-only cursor path.
 export const Platform = { OS: 'ios' as 'android' | 'ios' | 'web' }
 
@@ -22,3 +22,8 @@ export const Platform = { OS: 'ios' as 'android' | 'ios' | 'web' }
 export const BackHandler = {
   addEventListener: jest.fn((_eventName: 'hardwareBackPress', _handler: () => boolean) => ({ remove: jest.fn() }))
 }
+
+// A jest.fn so a spec can mockReturnValueOnce a different window size to exercise percentage-based
+// height/width resolution; defaults to an arbitrary but fixed size for every other spec, which
+// mostly pass plain px numbers that never consult this at all.
+export const useWindowDimensions = jest.fn(() => ({ fontScale: 1, height: 800, scale: 1, width: 400 }))

@@ -10,6 +10,7 @@ type PanEvent = { translationX: number; translationY: number; velocityX: number;
 class PanGestureBuilder {
   private isEnabled = true
   private onEndHandler?: (event: PanEvent) => void
+  private onStartHandler?: () => void
   private onUpdateHandler?: (event: PanEvent) => void
 
   enabled(value: boolean) {
@@ -33,6 +34,11 @@ class PanGestureBuilder {
     return this
   }
 
+  onStart(handler: () => void) {
+    this.onStartHandler = handler
+    return this
+  }
+
   onUpdate(handler: (event: PanEvent) => void) {
     this.onUpdateHandler = handler
     return this
@@ -44,7 +50,7 @@ class PanGestureBuilder {
   }
 
   __getHandlers() {
-    return { enabled: this.isEnabled, onEnd: this.onEndHandler, onUpdate: this.onUpdateHandler }
+    return { enabled: this.isEnabled, onEnd: this.onEndHandler, onStart: this.onStartHandler, onUpdate: this.onUpdateHandler }
   }
 }
 

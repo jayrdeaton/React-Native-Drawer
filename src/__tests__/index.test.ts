@@ -8,7 +8,7 @@ describe('package exports', () => {
     expect(typeof DrawerEdgeSwipe).toBe('function')
   })
 
-  // Type-only, so there's nothing to assert at runtime beyond "this still compiles" — guards
+  // Type-only, so there's nothing to assert at runtime beyond "this still compiles": guards
   // against DrawerSide silently dropping off the public surface again (it's referenced by
   // DrawerProps/DrawerEdgeSwipeProps/CreateDrawerOptions but geometry.ts itself isn't exported).
   it('exports the DrawerSide type consumers reference in `side` props', () => {
