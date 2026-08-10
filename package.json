@@ -1,6 +1,6 @@
 {
   "name": "@rific/drawer",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Left/right sliding drawer with edge-swipe gestures for React Native: spring-animated, theme-aware, one factory call per drawer instance",
   "keywords": [
     "react-native",
