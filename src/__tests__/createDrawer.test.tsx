@@ -1,4 +1,3 @@
-import { Pressable } from '@rific/haptic-press'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import React from 'react'
 import { BackHandler, View } from 'react-native'
@@ -7,7 +6,6 @@ import Animated, { withSpring } from 'react-native-reanimated'
 
 import { createDrawer } from '../createDrawer'
 
-const MockPressable = Pressable as unknown as jest.Mock
 const MockView = View as unknown as jest.Mock
 const MockGestureDetector = GestureDetector as unknown as jest.Mock
 const MockAnimatedView = Animated.View as unknown as jest.Mock
@@ -35,11 +33,26 @@ const flattenStyle = (style: unknown): Record<string, unknown> => (Array.isArray
 // Drawer's own dismiss-handle GestureDetector, the most recently rendered one whenever dismissible
 // is on (the default): DrawerEdgeSwipe's edge-zone GestureDetector renders first, in JSX order.
 type MockedGesture = { __getHandlers: () => { onEnd?: (event: { translationX: number; translationY: number; velocityX: number; velocityY: number }) => void; onStart?: () => void; onUpdate?: (event: { translationX: number; translationY: number; velocityX: number; velocityY: number }) => void } }
+type MockedTapGesture = { __getHandlers: () => { enabled: boolean; onEnd?: (event: Record<string, never>, success: boolean) => void } }
 const lastGesture = () => (MockGestureDetector.mock.calls[MockGestureDetector.mock.calls.length - 1][0].gesture as MockedGesture).__getHandlers()
+// Drawer's own backdrop Gesture.Tap(), the second GestureDetector rendered: DrawerEdgeSwipe's
+// edge-zone GestureDetector renders first (see the comment above), and Drawer's backdrop tap
+// always comes right after it, ahead of the (optional) dismiss handle.
+const backdropGesture = () => (MockGestureDetector.mock.calls[1][0].gesture as MockedTapGesture).__getHandlers()
 const verticalEvent = (translationY: number, velocityY: number) => ({ translationX: 0, translationY, velocityX: 0, velocityY })
 
-const backdropPointerEvents = () => [...MockAnimatedView.mock.calls].reverse().find((call) => flattenStyle(call[0].style).zIndex === 50)?.[0].pointerEvents
-const backdropOpacityValue = () => flattenStyle([...MockAnimatedView.mock.calls].reverse().find((call) => flattenStyle(call[0].style).zIndex === 50)?.[0].style).opacity
+// The dimming tint's opacity/backgroundColor moved to its own child (backdropTint) once the
+// dimming layer and the tap-catching layer split apart (see Drawer.tsx); pointerEvents moved from
+// a bare prop into the outer backdrop container's own style array. Mirrors backdropCall/
+// backdropTintCall in Drawer.test.tsx.
+const backdropCall = () => [...MockAnimatedView.mock.calls].reverse().find((call) => flattenStyle(call[0].style).zIndex === 50)?.[0]
+const backdropTintCall = () => [...MockAnimatedView.mock.calls].reverse().find((call) => flattenStyle(call[0].style).backgroundColor === '#000')?.[0]
+const backdropPointerEvents = () => flattenStyle(backdropCall()?.style).pointerEvents
+const backdropOpacityValue = () => flattenStyle(backdropTintCall()?.style).opacity
+// The panel's own zIndex is always exactly one more than the backdrop's (Drawer.tsx: zIndex + 1),
+// regardless of the configured base zIndex — not positional, since backdropTint and the
+// collapsable backdrop-tap view now render as additional Animated.View calls ahead of the panel.
+const drawerPanelStyle = (zIndex = 50) => flattenStyle(MockAnimatedView.mock.calls.find((call) => flattenStyle(call[0].style).zIndex === zIndex + 1)?.[0].style)
 const pillRendered = () => MockView.mock.calls.some((call) => flattenStyle(call[0].style).borderRadius === 3)
 
 const OpenableConsumer = ({ useHook }: { useHook: () => { open: () => void } }) => {
@@ -72,7 +85,7 @@ describe('createDrawer', () => {
     fireEvent.click(screen.getByText('open'))
     expect(screen.getByTestId('state').textContent).toBe('open')
 
-    act(() => MockPressable.mock.calls[0][0].onPress())
+    act(() => backdropGesture().onEnd?.({}, true))
 
     expect(screen.getByTestId('state').textContent).toBe('closed')
   })
@@ -272,16 +285,17 @@ describe('createDrawer', () => {
   it('dismissible: settable at the factory level and overridden per-mount', () => {
     const { DrawerInstanceProvider } = createDrawer({ dismissible: false })
 
-    // Factory default false: only DrawerEdgeSwipe's own edge-zone GestureDetector, no dismiss handle.
+    // Factory default false: DrawerEdgeSwipe's own edge-zone GestureDetector + Drawer's own backdrop
+    // Gesture.Tap() (which always renders now, regardless of dismissible), no dismiss handle.
     const { unmount } = render(<DrawerInstanceProvider content={<span>content</span>} />)
-    expect(MockGestureDetector).toHaveBeenCalledTimes(1)
+    expect(MockGestureDetector).toHaveBeenCalledTimes(2)
     unmount()
 
     jest.clearAllMocks()
 
-    // Per-mount override back to true: edge zone + the dismiss handle.
+    // Per-mount override back to true: edge zone + backdrop tap + the dismiss handle.
     render(<DrawerInstanceProvider content={<span>content</span>} dismissible />)
-    expect(MockGestureDetector).toHaveBeenCalledTimes(2)
+    expect(MockGestureDetector).toHaveBeenCalledTimes(3)
   })
 
   it('blockingBackdrop: settable at the factory level and overridden per-mount', () => {
@@ -349,11 +363,12 @@ describe('createDrawer', () => {
   it('showHandle: settable at the factory level and overridden per-mount', () => {
     const { DrawerInstanceProvider } = createDrawer({ showHandle: false })
 
-    // Factory default false: both the edge-swipe zone and the dismiss handle's own strip still
-    // render (dismissible defaults true, independent of showHandle), just without the pill graphic.
+    // Factory default false: the edge-swipe zone, the backdrop's own Gesture.Tap(), and the dismiss
+    // handle's own strip still render (dismissible defaults true, independent of showHandle), just
+    // without the pill graphic.
     const { unmount } = render(<DrawerInstanceProvider content={<span>content</span>} />)
     expect(pillRendered()).toBe(false)
-    expect(MockGestureDetector).toHaveBeenCalledTimes(2)
+    expect(MockGestureDetector).toHaveBeenCalledTimes(3)
     unmount()
 
     jest.clearAllMocks()
@@ -380,10 +395,13 @@ describe('createDrawer', () => {
 
   describe('zIndex', () => {
     // Positional, not by their own zIndex (that's what's under test): the Drawer this
-    // DrawerInstanceProvider renders always produces its backdrop as the first Animated.View call and its
-    // panel as the second, and nothing else in these tests renders an Animated.View before it.
-    const backdropZIndex = () => flattenStyle(MockAnimatedView.mock.calls[0][0].style).zIndex
-    const panelZIndex = () => flattenStyle(MockAnimatedView.mock.calls[1][0].style).zIndex
+    // DrawerInstanceProvider renders always produces its backdrop as the first Animated.View call,
+    // and nothing else in these tests renders an Animated.View before it.
+    const backdropZIndex = () => flattenStyle(MockAnimatedView.mock.calls[0][0].style).zIndex as number
+    // Not positional (unlike backdropZIndex above): backdropTint and the collapsable backdrop-tap
+    // view both render as additional Animated.View calls ahead of the panel now, so the panel is
+    // found by its own zIndex (always backdropZIndex + 1) instead of a fixed call index.
+    const panelZIndex = () => drawerPanelStyle(backdropZIndex()).zIndex
 
     it('settable at the factory level and overridden per-mount', () => {
       const { DrawerInstanceProvider } = createDrawer({ zIndex: 100 })
@@ -430,7 +448,7 @@ describe('createDrawer', () => {
   })
 
   describe('maxHeight/maxWidth', () => {
-    const panelStyle = () => flattenStyle(MockAnimatedView.mock.calls[1][0].style)
+    const panelStyle = () => drawerPanelStyle()
 
     it('wires through to Drawer, sizing the panel to the max rather than the rest height', () => {
       const { DrawerInstanceProvider } = createDrawer({ height: 300, maxHeight: 800, side: 'bottom' })
@@ -470,7 +488,7 @@ describe('createDrawer', () => {
   })
 
   describe('edgeInset', () => {
-    const panelStyle = () => flattenStyle(MockAnimatedView.mock.calls[1][0].style)
+    const panelStyle = () => drawerPanelStyle()
 
     it('shrinks the basis a percentage maxHeight resolves against, wired through to both Drawer and DrawerEdgeSwipe', () => {
       const { DrawerInstanceProvider } = createDrawer({ edgeInset: 50, height: '50%', maxHeight: '100%', side: 'bottom' })

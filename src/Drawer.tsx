@@ -1,5 +1,4 @@
-import { Pressable } from '@rific/haptic-press'
-import { ReactNode, useEffect, useState } from 'react'
+import { ReactNode, useEffect, useRef, useState } from 'react'
 import { LayoutChangeEvent, Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { useTheme } from 'react-native-paper'
@@ -114,6 +113,10 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   const closeDirection = -openDirection as 1 | -1
 
   const [measuredSize, setMeasuredSize] = useState<number | null>(null)
+  // Tracks the last value actually committed to measuredSize, rounded — see handleLayout below for
+  // why the comparison has to happen against this rather than just re-deriving it from measuredSize
+  // itself on every call.
+  const lastMeasuredRef = useRef<number | null>(null)
   // contentSize measures its own box from natural content size, so it has no separate rest-vs-max
   // concept: maxHeight/maxWidth (the drag-to-expand ceiling) only apply in the fixed-size path.
   // height/width remain the pre-measurement placeholder until the first layout, same as before.
@@ -172,8 +175,22 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   // fully expanded, even though it usually only shows effectiveSize px of that at rest.
   const sizeStyle = vertical ? { height: maxEffectiveSize } : { width: maxEffectiveSize }
 
+  // Rounded (not the raw sub-pixel float layout reports) and short-circuited against the last value
+  // actually committed: an animated ancestor (animatedSizeStyle below, mid-withTiming) can cause
+  // Yoga to re-measure this supposedly content-unconstrained wrapper on every frame it's still
+  // moving, and floating-point noise between passes (e.g. 283.3333740234375 vs 283.33331298828125 —
+  // the same logical height, off by ~1/16000th of a pixel) is "different" by strict equality. Left
+  // unguarded, that noise commits a "new" measuredSize every frame, which restarts the very
+  // withTiming animation that's causing the re-measurement in the first place — a self-sustaining
+  // loop that never lets the height settle, seen as a stutter rather than a single smooth resize.
+  // Comparing against a ref (not measuredSize itself) matters here: measuredSize is the state that's
+  // deliberately being skipped on a no-op call, so re-deriving the comparison from it would still
+  // see the same (unchanged) value next time regardless — the ref is what actually remembers what
+  // was last committed.
   const handleLayout = (event: LayoutChangeEvent) => {
-    const measured = vertical ? event.nativeEvent.layout.height : event.nativeEvent.layout.width
+    const measured = Math.round(vertical ? event.nativeEvent.layout.height : event.nativeEvent.layout.width)
+    if (lastMeasuredRef.current === measured) return
+    lastMeasuredRef.current = measured
     setMeasuredSize(measured)
     onMeasure?.(measured)
   }
@@ -209,6 +226,16 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
     ) : (
       <View style={[fillStyle, { backgroundColor: colors.surface }]}>{children}</View>
     )
+  // contentSize's measuring wrapper above is deliberately given no style of its own (see the
+  // comment above `fillStyle`): it must report ITS OWN natural size, which only works if `children`
+  // itself has an intrinsic height Yoga can compute directly from its subtree — e.g. plain
+  // Views/Text/FABs, including a `flexWrap: 'wrap'` row like FabRow. A `ScrollView` breaks this: on
+  // native, ScrollView's outer box does NOT size itself to its content the way a plain View does —
+  // it needs a bounded height from an ANCESTOR instead (see ScrollView's own docs) — so measuring
+  // one via onLayout here reports some small, real-but-wrong box height (whatever Yoga happens to
+  // resolve it to absent an explicit bound) rather than the content's true extent, and clips
+  // anything beyond that. contentSize's `children` must render its own natural-height content
+  // directly (no ScrollView) for this measurement to be meaningful.
 
   // Deliberately NOT clipped (no overflow: hidden here, unlike the contentSize clip wrapper below):
   // the handle strip is a child of this view, positioned outside its bounds (see
@@ -253,6 +280,17 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   // mid-expansion (or even mid-spring, if a new touch interrupts one still settling), and onUpdate
   // needs to offset from wherever the panel actually was, not always from rest.
   const gestureStartOffset = useSharedValue(closedOffset)
+
+  // react-native-gesture-handler's own Tap, not @rific/haptic-press's plain-RN Pressable: this
+  // sits in the same GestureDetector-based system as the panel's own drag handle below, rather
+  // than mixing RNGH's native recognizers with RN's separate classic responder system on the one
+  // view in the tree (the backdrop) that most needs to reliably win a touch over whatever's behind
+  // it, including a consumer's own full-screen canvas gestures (e.g. Swirlio's pan/pinch/rotation).
+  const backdropTapGesture = Gesture.Tap()
+    .enabled(open && blockingBackdrop)
+    .onEnd((_event, success) => {
+      if (success) runOnJS(onClose)()
+    })
 
   const handleGesture = handleAxisGesture
     .enabled(open)
@@ -353,8 +391,24 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
 
   return (
     <>
-      <Animated.View style={[styles.backdrop, { zIndex }, backdropStyle]} pointerEvents={open && blockingBackdrop ? 'auto' : 'none'}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      <Animated.View style={[styles.backdropPosition, { zIndex, pointerEvents: open && blockingBackdrop ? 'auto' : 'none' }]}>
+        {/* The dimming tint is its own child, carrying the actual black backgroundColor and
+        backdropStyle's animated opacity, separate from the tap-catching view below and from the
+        OUTER container above (which must stay paint-free, not just visually transparent at
+        opacity 0): on iOS, a view at opacity 0 (e.g. backdropOpacity={0}, an intentional no-dim
+        backdrop — see controlGroups.tsx) is excluded from hit-testing entirely by UIKit,
+        regardless of pointerEvents. That's fine for a purely decorative tint, but it would
+        silently make the whole backdrop untouchable too if the SAME view carried both — and if
+        the outer container carried the background color instead, it would paint solid black at
+        full opacity at all times (no animated opacity of its own), open or not. */}
+        <Animated.View style={[styles.backdropTint, backdropStyle]} pointerEvents='none' />
+        <GestureDetector gesture={backdropTapGesture}>
+          {/* collapsable={false}: this view has no paint properties of its own (no background,
+          no animated style), exactly the shape React Native's view-flattening optimizer removes
+          from the native tree on native platforms — leaving the GestureDetector above with no real
+          view left to attach its tap recognizer to, so it would silently never receive a touch. */}
+          <Animated.View collapsable={false} style={StyleSheet.absoluteFill} />
+        </GestureDetector>
       </Animated.View>
       <Animated.View style={drawerOuterStyle}>
         {contentSize ? <View style={contentClipStyle}>{fill}</View> : fill}
@@ -389,7 +443,14 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0
   },
-  backdrop: {
+  backdropPosition: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0
+  },
+  backdropTint: {
     backgroundColor: '#000',
     bottom: 0,
     left: 0,

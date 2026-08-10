@@ -1,4 +1,3 @@
-import { Pressable } from '@rific/haptic-press'
 import { BlurView, useBlur } from '@rific/auto-paper'
 import { act, render, type RenderResult, screen } from '@testing-library/react'
 import React, { type ReactElement } from 'react'
@@ -9,7 +8,6 @@ import Animated, { type SharedValue, withSpring } from 'react-native-reanimated'
 import { type AutoPaperModule, DrawerProvider } from '../DrawerConfig'
 import { Drawer } from '../Drawer'
 
-const MockPressable = Pressable as unknown as jest.Mock
 const MockBlurView = BlurView as unknown as jest.Mock
 const mockUseBlur = useBlur as unknown as jest.Mock
 const MockUseWindowDimensions = useWindowDimensions as unknown as jest.Mock
@@ -33,15 +31,28 @@ const renderDrawer = (ui: ReactElement): RenderResult => render(ui, { wrapper: w
 const lastSpringFinishCallback = () => [...MockWithSpring.mock.calls].reverse().find((call) => typeof call[2] === 'function')?.[2] as ((finished?: boolean) => void) | undefined
 
 type MockedGesture = { __getHandlers: () => { enabled: boolean; onEnd?: (event: { translationX: number; translationY: number; velocityX: number; velocityY: number }) => void; onStart?: () => void; onUpdate?: (event: { translationX: number; translationY: number; velocityX: number; velocityY: number }) => void } }
+type MockedTapGesture = { __getHandlers: () => { enabled: boolean; onEnd?: (event: Record<string, never>, success: boolean) => void } }
 
+// Drawer always renders its backdrop's own Gesture.Tap() first (the very first GestureDetector in
+// the tree — see the zIndex describe block's own comment on render order) and the drag handle's
+// Gesture.Pan() last, if it renders at all (dismissible) — same reasoning as lastGesture below, just
+// anchored to the opposite end of the call list.
+const firstGesture = () => (MockGestureDetector.mock.calls[0][0].gesture as MockedTapGesture).__getHandlers()
 const lastGesture = () => (MockGestureDetector.mock.calls[MockGestureDetector.mock.calls.length - 1][0].gesture as MockedGesture).__getHandlers()
 const event = (translationX: number, velocityX: number) => ({ translationX, translationY: 0, velocityX, velocityY: 0 })
 const sharedValue = (initial: number) => ({ value: initial }) as SharedValue<number>
 
 const flattenStyle = (style: unknown): Record<string, unknown> => (Array.isArray(style) ? style : [style]).reduce((acc: Record<string, unknown>, s) => ({ ...acc, ...(s as Record<string, unknown>) }), {})
 
-const drawerPanelStyle = () => flattenStyle(MockAnimatedView.mock.calls.find((call) => flattenStyle(call[0].style).zIndex === 51)?.[0].style)
+const drawerPanelStyle = (zIndex = 50) => flattenStyle(MockAnimatedView.mock.calls.find((call) => flattenStyle(call[0].style).zIndex === zIndex + 1)?.[0].style)
+// The backdrop's own outer wrapper — carries zIndex and pointerEvents (both inside style now, not
+// pointerEvents as a bare prop — see Drawer.tsx's own comment on why), but no longer opacity, which
+// moved to its child backdropTint (see backdropTintCall below) once the dimming layer and the
+// tap-to-close hit target split into separate views.
 const backdropCall = () => MockAnimatedView.mock.calls.find((call) => flattenStyle(call[0].style).zIndex === 50)?.[0]
+// The backdrop's dimming child — identified by its distinctive backgroundColor (styles.backdropTint)
+// rather than zIndex, which it doesn't set at all (it inherits its stacking from the outer wrapper).
+const backdropTintCall = () => MockAnimatedView.mock.calls.find((call) => flattenStyle(call[0].style).backgroundColor === '#000')?.[0]
 // The handle strip is an Animated.View, identified by its distinctive alignItems/justifyContent
 // styling (styles.handleStrip) rather than position or zIndex, both of which vary by test.
 const handleStripStyle = () => flattenStyle(MockAnimatedView.mock.calls.find((call) => flattenStyle(call[0].style).justifyContent === 'center')?.[0].style)
@@ -53,9 +64,21 @@ describe('Drawer', () => {
     const onClose = jest.fn()
     renderDrawer(<Drawer onClose={onClose} open />)
 
-    MockPressable.mock.calls[0][0].onPress()
+    // success=true: a genuine completed tap, as opposed to one that got interrupted or dragged past
+    // the gesture's own distance/duration bounds (see Drawer.tsx's backdropTapGesture — only a
+    // successful tap actually calls onClose).
+    firstGesture().onEnd?.({}, true)
 
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not call onClose when the backdrop tap gesture reports failure', () => {
+    const onClose = jest.fn()
+    renderDrawer(<Drawer onClose={onClose} open />)
+
+    firstGesture().onEnd?.({}, false)
+
+    expect(onClose).not.toHaveBeenCalled()
   })
 
   it('renders its content', () => {
@@ -342,7 +365,7 @@ describe('Drawer', () => {
         </Drawer>
       )
 
-      expect(flattenStyle(backdropCall()?.style).opacity).toBe(0)
+      expect(flattenStyle(backdropTintCall()?.style).opacity).toBe(0)
     })
   })
 
@@ -529,7 +552,9 @@ describe('Drawer', () => {
         </Drawer>
       )
 
-      expect(MockGestureDetector).toHaveBeenCalledTimes(1)
+      // 2, not 1: the backdrop's own Gesture.Tap() (see the top-of-file comment on render order)
+      // always renders regardless of dismissible, so the drag handle's Gesture.Pan() is the second.
+      expect(MockGestureDetector).toHaveBeenCalledTimes(2)
     })
 
     it('omits the drag handle when dismissible is false', () => {
@@ -539,7 +564,9 @@ describe('Drawer', () => {
         </Drawer>
       )
 
-      expect(MockGestureDetector).not.toHaveBeenCalled()
+      // 1, not 0: the backdrop's own Gesture.Tap() still renders — dismissible only controls the
+      // drag handle.
+      expect(MockGestureDetector).toHaveBeenCalledTimes(1)
     })
 
     it('calls onClose when the handle is dragged past a third of the size in the closing direction', () => {
@@ -735,7 +762,7 @@ describe('Drawer', () => {
         </Drawer>
       )
 
-      expect(backdropCall()?.pointerEvents).toBe('auto')
+      expect(flattenStyle(backdropCall()?.style).pointerEvents).toBe('auto')
     })
 
     it('never intercepts touches when blockingBackdrop is false, even while open', () => {
@@ -745,7 +772,7 @@ describe('Drawer', () => {
         </Drawer>
       )
 
-      expect(backdropCall()?.pointerEvents).toBe('none')
+      expect(flattenStyle(backdropCall()?.style).pointerEvents).toBe('none')
     })
   })
 
@@ -762,7 +789,7 @@ describe('Drawer', () => {
         </Drawer>
       )
 
-      expect(flattenStyle(backdropCall()?.style).opacity).toBe(0.45)
+      expect(flattenStyle(backdropTintCall()?.style).opacity).toBe(0.45)
     })
 
     it('renders no dimming at all when set to 0, independent of blockingBackdrop', () => {
@@ -772,9 +799,9 @@ describe('Drawer', () => {
         </Drawer>
       )
 
-      expect(flattenStyle(backdropCall()?.style).opacity).toBe(0)
+      expect(flattenStyle(backdropTintCall()?.style).opacity).toBe(0)
       // Still blocks touches by default: an undimmed backdrop isn't the same as a non-blocking one.
-      expect(backdropCall()?.pointerEvents).toBe('auto')
+      expect(flattenStyle(backdropCall()?.style).pointerEvents).toBe('auto')
     })
   })
 
@@ -801,15 +828,19 @@ describe('Drawer', () => {
       expect(pillCall()).toBeUndefined()
       // The strip itself, and the gesture attached to it, is unaffected by showHandle; only
       // `dismissible` controls whether either renders at all (see the dismissible tests above).
-      expect(MockGestureDetector).toHaveBeenCalledTimes(1)
+      // 2, not 1: the backdrop's own Gesture.Tap() always renders too (see the dismissible tests'
+      // own comment on render order) — the handle's Gesture.Pan() is the second.
+      expect(MockGestureDetector).toHaveBeenCalledTimes(2)
     })
   })
 
   describe('zIndex', () => {
-    // Located positionally rather than by their own zIndex (which is exactly what's under test here):
-    // Drawer always renders its backdrop as the first Animated.View and its panel as the second. The
-    // handle strip is itself an Animated.View too (for its own animated visibility), found by its
-    // distinctive style rather than position.
+    // The backdrop is located positionally (which is exactly what's under test here): Drawer always
+    // renders it as the first Animated.View. The panel is no longer the second call now that
+    // backdropTint and the collapsable backdrop-tap view render as additional Animated.View calls
+    // ahead of it, so it's found via drawerPanelStyle() (by its own zIndex) instead. The handle strip
+    // is itself an Animated.View too (for its own animated visibility), found by its distinctive
+    // style rather than position.
     const handleStripCall = () => MockAnimatedView.mock.calls.find((call) => flattenStyle(call[0].style).justifyContent === 'center')
 
     it('defaults the backdrop/panel/handle to 50/51/52', () => {
@@ -820,7 +851,7 @@ describe('Drawer', () => {
       )
 
       expect(flattenStyle(MockAnimatedView.mock.calls[0][0].style).zIndex).toBe(50)
-      expect(flattenStyle(MockAnimatedView.mock.calls[1][0].style).zIndex).toBe(51)
+      expect(drawerPanelStyle().zIndex).toBe(51)
       expect(flattenStyle(handleStripCall()?.[0].style).zIndex).toBe(52)
     })
 
@@ -832,7 +863,7 @@ describe('Drawer', () => {
       )
 
       expect(flattenStyle(MockAnimatedView.mock.calls[0][0].style).zIndex).toBe(200)
-      expect(flattenStyle(MockAnimatedView.mock.calls[1][0].style).zIndex).toBe(201)
+      expect(drawerPanelStyle(200).zIndex).toBe(201)
       expect(flattenStyle(handleStripCall()?.[0].style).zIndex).toBe(202)
     })
   })
