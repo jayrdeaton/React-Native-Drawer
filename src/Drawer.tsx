@@ -211,6 +211,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   // transparent, matching "closed," since a not-yet-sized panel isn't meaningfully open yet either.
   const backdropStyle = useAnimatedStyle(() => ({ opacity: maxEffectiveSize > 0 ? (1 - Math.abs(translateOffset.value) / maxEffectiveSize) * backdropOpacity : 0 }))
   const animatedSizeStyle = useAnimatedStyle(() => (vertical ? { height: animatedSize.value } : { width: animatedSize.value }))
+  const backdropInteractionStyle: ViewStyle = { zIndex, pointerEvents: open && blockingBackdrop ? 'auto' : 'none' }
 
   const positionStyle = side === 'left' ? styles.anchorLeft : side === 'right' ? styles.anchorRight : side === 'top' ? styles.anchorTop : styles.anchorBottom
   // maxEffectiveSize, not the raw height/width prop: the box must be big enough to show the panel
@@ -414,6 +415,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   // invisible margin around it grew.
   const handleStripPaddingStyle: ViewStyle = side === 'left' ? { paddingLeft: HANDLE_HIT_SLOP } : side === 'right' ? { paddingRight: HANDLE_HIT_SLOP } : side === 'top' ? { paddingTop: HANDLE_HIT_SLOP } : { paddingBottom: HANDLE_HIT_SLOP }
   const handlePillStyle: ViewStyle = vertical ? { height: 6, width: 64 } : { height: 64, width: 6 }
+  const handleStripInteractionStyle: ViewStyle = { zIndex: zIndex + 2, pointerEvents: open ? 'auto' : 'none' }
   // react-native-web reads `cursor` straight off style; native ignores the unknown key. ViewStyle (the
   // native type these files are typed against) has no such property, hence the cast.
   const webCursorStyle = { cursor: Platform.OS === 'web' ? 'pointer' : undefined } as ViewStyle
@@ -446,7 +448,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
 
   return (
     <>
-      <Animated.View style={[styles.backdropPosition, { zIndex, pointerEvents: open && blockingBackdrop ? 'auto' : 'none' }]}>
+      <Animated.View style={[styles.backdropPosition, backdropInteractionStyle]}>
         {/* The dimming tint is its own child, carrying the actual black backgroundColor and
         backdropStyle's animated opacity, separate from the tap-catching view below and from the
         OUTER container above (which must stay paint-free, not just visually transparent at
@@ -485,7 +487,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
                 band — and swallows taps meant for whatever's underneath it despite being invisible
                 AND, since the gesture itself is disabled here too, unable to do anything with them
                 either. */}
-            <Animated.View style={[styles.handleStrip, handleStripSizeStyle, handleStripEdgeStyle, handleStripPaddingStyle, webCursorStyle, handleVisibilityStyle, { zIndex: zIndex + 2, pointerEvents: open ? 'auto' : 'none' }]}>{showHandle && <View style={[styles.handlePill, handlePillStyle, { backgroundColor: colors.surface }]} />}</Animated.View>
+            <Animated.View style={[styles.handleStrip, handleStripSizeStyle, handleStripEdgeStyle, handleStripPaddingStyle, webCursorStyle, handleVisibilityStyle, handleStripInteractionStyle]}>{showHandle && <View style={[styles.handlePill, handlePillStyle, { backgroundColor: colors.surface }]} />}</Animated.View>
           </GestureDetector>
         )}
       </Animated.View>
