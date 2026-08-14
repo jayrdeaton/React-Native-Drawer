@@ -28,6 +28,28 @@ const VELOCITY_THRESHOLD = 500
 // fallback stands in when auto-paper isn't configured, so a per-render branch isn't needed.
 const useBlurFallback = (override?: boolean) => override ?? false
 
+export type DrawerPanelShadow = {
+  blurRadius?: number
+  color?: string
+  // Magnitude only, in px — always positive, regardless of `side`. The actual signed offset
+  // (which way the shadow falls) is derived from `side` internally, the same way DrawerEdgeSwipe
+  // derives its own opening direction from it: a consumer supplying the wrong sign for a
+  // right/bottom-anchored panel (an easy mistake — see this prop's own top-level doc comment) is
+  // exactly the bug this exists to make impossible.
+  distance?: number
+  // Android's own native shadow system, alongside (not instead of) the boxShadow above — the two
+  // aren't redundant: boxShadow is what actually paints on iOS/web, and while the New
+  // Architecture's Fabric renderer does translate boxShadow to a real shadow on Android too,
+  // elevation is the longer-established, better-tested path there and worth keeping as a belt-
+  // and-suspenders fallback rather than trusting boxShadow alone on every Android/RN version this
+  // could run on. Defaults to blurRadius itself — the same plain magnitude-to-elevation
+  // correspondence a consumer would otherwise hand-roll (this mirrors what this repo's own past
+  // panelContent styles, now replaced by this prop, always did: elevation set to the same number
+  // as blurRadius). Rendered on the SAME view panelShadowVisibilityStyle animates the opacity of,
+  // so it fades in/out right along with the boxShadow rather than needing its own logic.
+  elevation?: number
+}
+
 export type DrawerProps = {
   // Peak backdrop opacity once fully open (scaled down as the panel slides toward closed, same as
   // before): 0 renders no dimming at all, letting whatever's behind the panel stay fully visible.
@@ -87,6 +109,16 @@ export type DrawerProps = {
   // autofocusing a field inside `content` only once it's actually on screen.
   onOpened?: () => void
   open: boolean
+  // Off by default (this is a real, paid render — an extra always-mounted Animated.View — not
+  // free to opt every consumer into). true uses sensible defaults (2px distance, 8px blur, 30%
+  // black); pass a DrawerPanelShadow to override any of those. Opacity fades in/out together with
+  // the handle strip's own pill (both driven by the same visibleSize), rather than being either
+  // permanently on or permanently off: a plain static shadow on the panel bleeds past its own
+  // blurRadius even while `open` is false and the panel is translated fully off-screen, since a
+  // closed panel sits exactly flush against the screen edge (translateOffset === closedOffset) —
+  // shadow rendering doesn't know or care that its box is off-screen, so a few px of blur reads as
+  // a permanent, unwanted line along that edge, closed or not.
+  panelShadow?: boolean | DrawerPanelShadow
   side?: DrawerSide
   // Whether the handle strip's own visual pill graphic draws, independent of `dismissible`, which
   // controls the strip (and its drag-to-dismiss gesture) as a whole. false keeps the strip's hit area
@@ -106,11 +138,21 @@ export type DrawerProps = {
   zIndex?: number
 }
 
-export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, children, contentSize = false, dismissible = true, edgeInset = 0, height = 300, maxHeight, maxWidth, onClose, onClosed, onMeasure, onOpened, open, side = 'left', showHandle = true, translateOffset: externalTranslateOffset, width = 300, zIndex = 50 }: DrawerProps) => {
+export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, children, contentSize = false, dismissible = true, edgeInset = 0, height = 300, maxHeight, maxWidth, onClose, onClosed, onMeasure, onOpened, open, panelShadow, side = 'left', showHandle = true, translateOffset: externalTranslateOffset, width = 300, zIndex = 50 }: DrawerProps) => {
   const { colors } = useTheme()
   const vertical = isVerticalSide(side)
   const openDirection = getOpenDirection(side)
   const closeDirection = -openDirection as 1 | -1
+  const resolvedPanelShadow = panelShadow === true ? {} : panelShadow || null
+  const panelShadowDistance = resolvedPanelShadow?.distance ?? 2
+  const panelShadowBlurRadius = resolvedPanelShadow?.blurRadius ?? 8
+  const panelShadowColor = resolvedPanelShadow?.color ?? 'rgba(0, 0, 0, 0.3)'
+  const panelShadowElevation = resolvedPanelShadow?.elevation ?? panelShadowBlurRadius
+  // Same sign convention as the "opens toward" direction below (openDirection: 1 for left/top, -1
+  // for right/bottom): a panel's shadow always falls AWAY from the panel, onto whatever content
+  // sits on its open side — which is exactly the side its own drag-to-open motion points toward.
+  const panelShadowMagnitude = panelShadowDistance * openDirection
+  const panelShadowStyle: ViewStyle = { boxShadow: [{ offsetX: vertical ? 0 : panelShadowMagnitude, offsetY: vertical ? panelShadowMagnitude : 0, blurRadius: panelShadowBlurRadius, color: panelShadowColor }], elevation: panelShadowElevation }
 
   const [measuredSize, setMeasuredSize] = useState<number | null>(null)
   // Tracks the last value actually committed to measuredSize, rounded — see handleLayout below for
@@ -389,6 +431,19 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
     return { opacity: visibleSize >= HANDLE_STRIP_THICKNESS ? 1 : 0 }
   })
 
+  // Ramps smoothly over the shadow's own visual extent (how far its blur can actually reach past
+  // the panel's true edge) rather than snapping like the handle strip's own binary visibleSize
+  // check above: by the time visibleSize passes that point, the panel edge itself is already
+  // further onto the screen than the shadow ever bled, so there's no longer a "fake" shadow to
+  // distinguish from a real one — full opacity is correct from there on. Always computed (hooks
+  // can't be called conditionally) even when panelShadow is falsy; harmless, since the style is
+  // never applied to anything in that case.
+  const panelShadowFadeDistance = panelShadowBlurRadius + panelShadowDistance
+  const panelShadowVisibilityStyle = useAnimatedStyle(() => {
+    const visibleSize = maxEffectiveSize - translateOffset.value * closeDirection
+    return { opacity: Math.min(1, Math.max(0, visibleSize / panelShadowFadeDistance)) }
+  })
+
   return (
     <>
       <Animated.View style={[styles.backdropPosition, { zIndex, pointerEvents: open && blockingBackdrop ? 'auto' : 'none' }]}>
@@ -411,10 +466,26 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
         </GestureDetector>
       </Animated.View>
       <Animated.View style={drawerOuterStyle}>
+        {/* pointerEvents='none': purely decorative, drawn outside the panel's own box (a directional
+            box-shadow never paints over the box's own content area), so it has no business
+            intercepting anything even at full opacity. Absolutely filled to the panel's own current
+            bounds, contentSize included, rather than a fixed size, so it tracks that animation too. */}
+        {resolvedPanelShadow && <Animated.View pointerEvents='none' style={[StyleSheet.absoluteFill, panelShadowStyle, panelShadowVisibilityStyle]} />}
         {contentSize ? <View style={contentClipStyle}>{fill}</View> : fill}
         {dismissible && (
           <GestureDetector gesture={handleGesture}>
-            <Animated.View style={[styles.handleStrip, handleStripSizeStyle, handleStripEdgeStyle, handleStripPaddingStyle, webCursorStyle, handleVisibilityStyle, { zIndex: zIndex + 2 }]}>{showHandle && <View style={[styles.handlePill, handlePillStyle, { backgroundColor: colors.surface }]} />}</Animated.View>
+            {/* pointerEvents mirrors handleGesture's own .enabled(open) above, the same way the
+                backdrop's tap-catcher mirrors backdropTapGesture's .enabled(open && blockingBackdrop)
+                just above — handleVisibilityStyle's opacity already fades this strip out once the
+                panel's closed, but opacity alone doesn't stop hit-testing on web/Android (unlike iOS,
+                which excludes opacity-0 views from hit-testing regardless of pointerEvents — see the
+                backdrop tint's own comment on that asymmetry). Left at 'auto' while closed, this
+                48px-wide strip sits at zIndex+2 flush against the screen edge closest to `side` —
+                easy to land a consumer's own edge-anchored chrome (an app bar icon, say) in that same
+                band — and swallows taps meant for whatever's underneath it despite being invisible
+                AND, since the gesture itself is disabled here too, unable to do anything with them
+                either. */}
+            <Animated.View style={[styles.handleStrip, handleStripSizeStyle, handleStripEdgeStyle, handleStripPaddingStyle, webCursorStyle, handleVisibilityStyle, { zIndex: zIndex + 2, pointerEvents: open ? 'auto' : 'none' }]}>{showHandle && <View style={[styles.handlePill, handlePillStyle, { backgroundColor: colors.surface }]} />}</Animated.View>
           </GestureDetector>
         )}
       </Animated.View>

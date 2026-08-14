@@ -56,6 +56,9 @@ const backdropTintCall = () => MockAnimatedView.mock.calls.find((call) => flatte
 // The handle strip is an Animated.View, identified by its distinctive alignItems/justifyContent
 // styling (styles.handleStrip) rather than position or zIndex, both of which vary by test.
 const handleStripStyle = () => flattenStyle(MockAnimatedView.mock.calls.find((call) => flattenStyle(call[0].style).justifyContent === 'center')?.[0].style)
+// panelShadow's own Animated.View, identified by the one style property nothing else in Drawer
+// ever sets — a boxShadow array — rather than position/zIndex, both of which vary by test.
+const panelShadowStyle = () => flattenStyle(MockAnimatedView.mock.calls.find((call) => Array.isArray(flattenStyle(call[0].style).boxShadow))?.[0]?.style)
 
 describe('Drawer', () => {
   beforeEach(() => jest.clearAllMocks())
@@ -754,6 +757,121 @@ describe('Drawer', () => {
     })
   })
 
+  describe('panelShadow', () => {
+    it('renders nothing by default', () => {
+      renderDrawer(
+        <Drawer onClose={jest.fn()} open translateOffset={sharedValue(0)} width={300}>
+          <span>drawer content</span>
+        </Drawer>
+      )
+
+      expect(panelShadowStyle()).toEqual({})
+    })
+
+    it('uses sensible defaults (2px distance, 8px blur, 30% black) when passed true, with elevation mirroring blurRadius for Android', () => {
+      renderDrawer(
+        <Drawer onClose={jest.fn()} open panelShadow translateOffset={sharedValue(0)} width={300}>
+          <span>drawer content</span>
+        </Drawer>
+      )
+
+      expect(panelShadowStyle().boxShadow).toEqual([{ offsetX: 2, offsetY: 0, blurRadius: 8, color: 'rgba(0, 0, 0, 0.3)' }])
+      expect(panelShadowStyle().elevation).toBe(8)
+    })
+
+    it('respects a custom distance/blurRadius/color, still mirroring the custom blurRadius into elevation', () => {
+      renderDrawer(
+        <Drawer onClose={jest.fn()} open panelShadow={{ blurRadius: 16, color: '#123456', distance: 4 }} translateOffset={sharedValue(0)} width={300}>
+          <span>drawer content</span>
+        </Drawer>
+      )
+
+      expect(panelShadowStyle().boxShadow).toEqual([{ offsetX: 4, offsetY: 0, blurRadius: 16, color: '#123456' }])
+      expect(panelShadowStyle().elevation).toBe(16)
+    })
+
+    it('respects an explicit elevation independent of blurRadius', () => {
+      renderDrawer(
+        <Drawer onClose={jest.fn()} open panelShadow={{ blurRadius: 16, elevation: 3 }} translateOffset={sharedValue(0)} width={300}>
+          <span>drawer content</span>
+        </Drawer>
+      )
+
+      expect(panelShadowStyle().elevation).toBe(3)
+    })
+
+    // Regression: this is the whole reason panelShadow exists as an animated fade rather than a
+    // plain static style — see Drawer.tsx's own doc comment on the prop for the bug this replaces.
+    it('falls where the panel opens toward, not away from it, for every side', () => {
+      renderDrawer(
+        <Drawer onClose={jest.fn()} open panelShadow side='left' translateOffset={sharedValue(0)} width={300}>
+          <span>left</span>
+        </Drawer>
+      )
+      expect(panelShadowStyle().boxShadow).toEqual([{ offsetX: 2, offsetY: 0, blurRadius: 8, color: 'rgba(0, 0, 0, 0.3)' }])
+
+      jest.clearAllMocks()
+      renderDrawer(
+        <Drawer onClose={jest.fn()} open panelShadow side='right' translateOffset={sharedValue(0)} width={300}>
+          <span>right</span>
+        </Drawer>
+      )
+      expect(panelShadowStyle().boxShadow).toEqual([{ offsetX: -2, offsetY: 0, blurRadius: 8, color: 'rgba(0, 0, 0, 0.3)' }])
+
+      jest.clearAllMocks()
+      renderDrawer(
+        <Drawer height={300} onClose={jest.fn()} open panelShadow side='top' translateOffset={sharedValue(0)}>
+          <span>top</span>
+        </Drawer>
+      )
+      expect(panelShadowStyle().boxShadow).toEqual([{ offsetX: 0, offsetY: 2, blurRadius: 8, color: 'rgba(0, 0, 0, 0.3)' }])
+
+      jest.clearAllMocks()
+      renderDrawer(
+        <Drawer height={300} onClose={jest.fn()} open panelShadow side='bottom' translateOffset={sharedValue(0)}>
+          <span>bottom</span>
+        </Drawer>
+      )
+      expect(panelShadowStyle().boxShadow).toEqual([{ offsetX: 0, offsetY: -2, blurRadius: 8, color: 'rgba(0, 0, 0, 0.3)' }])
+    })
+
+    // The exact bug report this whole feature fixes: a plain static shadow bleeds its blurRadius
+    // back onto the visible screen even while fully closed, since a closed panel sits exactly
+    // flush against the screen edge (translateOffset === closedOffset) — opacity has to reach
+    // all the way to 0 right at that point, not just "mostly faded."
+    it('is fully invisible once the panel is fully closed', () => {
+      renderDrawer(
+        <Drawer onClose={jest.fn()} open={false} panelShadow translateOffset={sharedValue(-300)} width={300}>
+          <span>drawer content</span>
+        </Drawer>
+      )
+
+      expect(panelShadowStyle().opacity).toBe(0)
+    })
+
+    it('is fully visible while open', () => {
+      renderDrawer(
+        <Drawer onClose={jest.fn()} open panelShadow translateOffset={sharedValue(0)} width={300}>
+          <span>drawer content</span>
+        </Drawer>
+      )
+
+      expect(panelShadowStyle().opacity).toBe(1)
+    })
+
+    it('ramps smoothly across its own blurRadius + distance while dragging closed, unlike the handle strip\'s binary snap', () => {
+      // blurRadius 8 + distance 2 = a 10px fade distance; 5px of panel still visible is exactly
+      // half that.
+      renderDrawer(
+        <Drawer onClose={jest.fn()} open panelShadow translateOffset={sharedValue(-295)} width={300}>
+          <span>drawer content</span>
+        </Drawer>
+      )
+
+      expect(panelShadowStyle().opacity).toBeCloseTo(0.5)
+    })
+  })
+
   describe('blockingBackdrop', () => {
     it('intercepts touches while open by default', () => {
       renderDrawer(
@@ -773,6 +891,32 @@ describe('Drawer', () => {
       )
 
       expect(flattenStyle(backdropCall()?.style).pointerEvents).toBe('none')
+    })
+  })
+
+  describe('handle strip pointerEvents', () => {
+    // handleVisibilityStyle's own opacity already fades the strip out once closed, but opacity
+    // alone doesn't stop hit-testing on web/Android (see Drawer.tsx's own comment on the
+    // iOS/opacity-0 asymmetry) — pointerEvents has to make that explicit itself, same as the
+    // backdrop's own tap-catcher does for backdropTapGesture's identical open-gated .enabled().
+    it('intercepts touches while open, matching handleGesture being enabled', () => {
+      renderDrawer(
+        <Drawer onClose={jest.fn()} open>
+          <span>drawer content</span>
+        </Drawer>
+      )
+
+      expect(handleStripStyle().pointerEvents).toBe('auto')
+    })
+
+    it('lets touches pass through while closed, matching handleGesture being disabled there too', () => {
+      renderDrawer(
+        <Drawer onClose={jest.fn()} open={false}>
+          <span>drawer content</span>
+        </Drawer>
+      )
+
+      expect(handleStripStyle().pointerEvents).toBe('none')
     })
   })
 

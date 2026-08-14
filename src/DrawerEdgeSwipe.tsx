@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native'
+import { Platform, StyleSheet, View, type ViewStyle } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { runOnJS, SharedValue, withSpring } from 'react-native-reanimated'
 
@@ -70,10 +70,17 @@ export const DrawerEdgeSwipe = ({ edgeInset = 0, enabled = true, height = 300, m
 
   return (
     <GestureDetector gesture={gesture}>
-      <View style={edgeStyle} />
+      {/* Same web-only affordance Drawer.tsx's own handle strip gives its drag grip (see its
+          webCursorStyle) — without it, nothing on screen hints that this edge is draggable at
+          all on a platform with a mouse cursor to change in the first place. */}
+      <View style={[...edgeStyle, webCursorStyle]} />
     </GestureDetector>
   )
 }
+
+// react-native-web reads `cursor` straight off style; native ignores the unknown key. ViewStyle
+// (the native type this file is typed against) has no such property, hence the cast.
+const webCursorStyle = { cursor: Platform.OS === 'web' ? 'pointer' : undefined } as ViewStyle
 
 const styles = StyleSheet.create({
   bottom: { bottom: 0 },
