@@ -72,8 +72,17 @@ export const DrawerEdgeSwipe = ({ edgeInset = 0, enabled = true, height = 300, m
     <GestureDetector gesture={gesture}>
       {/* Same web-only affordance Drawer.tsx's own handle strip gives its drag grip (see its
           webCursorStyle) — without it, nothing on screen hints that this edge is draggable at
-          all on a platform with a mouse cursor to change in the first place. */}
-      <View style={[...edgeStyle, webCursorStyle]} />
+          all on a platform with a mouse cursor to change in the first place.
+
+          pointerEvents here (not just gesture.enabled(enabled) above) matters on web specifically:
+          RNGH's own enabled() only stops the Pan gesture from recognizing/completing a touch, it
+          doesn't stop this View's underlying DOM node from being hit-tested. Without this, a caller
+          passing enabled={false} to shed the edge-swipe-to-open behavior (e.g. because their own
+          screen never uses it) still ends up with this zone as an invisible, unconditionally opaque
+          strip along the edge — silently swallowing presses meant for anything else placed there,
+          even though the gesture it exists for no longer does anything. 'none' when disabled lets
+          that click/tap fall straight through to whatever's actually underneath. */}
+      <View style={[...edgeStyle, webCursorStyle, enabled ? styles.interactive : styles.nonInteractive]} />
     </GestureDetector>
   )
 }
@@ -98,7 +107,11 @@ const styles = StyleSheet.create({
     width: EDGE_WIDTH,
     zIndex: 5
   },
+  // See enabled's own comment above for why this needs to be a real style toggle, not just the
+  // gesture's own .enabled(enabled).
+  interactive: { pointerEvents: 'auto' },
   left: { left: 0 },
+  nonInteractive: { pointerEvents: 'none' },
   right: { right: 0 },
   top: { top: 0 }
 })

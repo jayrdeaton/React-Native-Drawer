@@ -83,6 +83,25 @@ describe('DrawerEdgeSwipe', () => {
     expect(lastGesture().enabled).toBe(false)
   })
 
+  // RNGH's own gesture.enabled(enabled) only stops the Pan gesture from recognizing a touch — it
+  // doesn't stop the underlying View from being hit-tested on web. Without pointerEvents tracking
+  // enabled too, a caller passing enabled={false} to shed the edge-swipe behavior would still be left
+  // with this zone as an invisible, unconditionally opaque strip along the edge, silently swallowing
+  // presses meant for anything else placed there.
+  it('lets touches pass through to whatever is underneath once disabled', () => {
+    const translateOffset = sharedValue(-300)
+    render(<DrawerEdgeSwipe enabled={false} onOpen={jest.fn()} translateOffset={translateOffset} width={300} />)
+
+    expect(flattenStyle(lastGestureProps().children.props.style).pointerEvents).toBe('none')
+  })
+
+  it('stays interactive by default (enabled omitted)', () => {
+    const translateOffset = sharedValue(-300)
+    render(<DrawerEdgeSwipe onOpen={jest.fn()} translateOffset={translateOffset} width={300} />)
+
+    expect(flattenStyle(lastGestureProps().children.props.style).pointerEvents).toBe('auto')
+  })
+
   it('commits open on a top drawer when dragged past a third of the height using the vertical axis', () => {
     const onOpen = jest.fn()
     const translateOffset = sharedValue(-250)
