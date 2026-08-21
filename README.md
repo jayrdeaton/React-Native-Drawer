@@ -11,7 +11,7 @@ npm install @rific/drawer
 **Peer dependencies:**
 
 ```sh
-npm install react-native-gesture-handler react-native-reanimated react-native-paper @rific/haptic-press
+npm install react-native-gesture-handler react-native-reanimated react-native-paper
 ```
 
 Your app's root must already be wrapped in `GestureHandlerRootView` (from `react-native-gesture-handler`). This package doesn't add its own, since only one should ever wrap the whole app.

@@ -324,7 +324,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   // needs to offset from wherever the panel actually was, not always from rest.
   const gestureStartOffset = useSharedValue(closedOffset)
 
-  // react-native-gesture-handler's own Tap, not @rific/haptic-press's plain-RN Pressable: this
+  // react-native-gesture-handler's own Tap, not @rific/feedback-press's plain-RN Pressable: this
   // sits in the same GestureDetector-based system as the panel's own drag handle below, rather
   // than mixing RNGH's native recognizers with RN's separate classic responder system on the one
   // view in the tree (the backdrop) that most needs to reliably win a touch over whatever's behind

@@ -61,7 +61,6 @@
   },
   "devDependencies": {
     "@rific/auto-paper": "^0.7.0",
-    "@rific/haptic-press": "^0.4.3",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@types/jest": "^30.0.0",
@@ -91,7 +90,6 @@
   },
   "peerDependencies": {
     "@rific/auto-paper": ">=0.7.0",
-    "@rific/haptic-press": ">=0.4.0",
     "react": ">=19.0.0",
     "react-native": ">=0.83.0",
     "react-native-gesture-handler": ">=2.20.0 <3.0.0",
