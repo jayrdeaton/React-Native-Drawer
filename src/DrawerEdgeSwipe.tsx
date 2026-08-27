@@ -51,6 +51,9 @@ export const DrawerEdgeSwipe = ({ edgeInset = 0, enabled = true, height = 300, m
     .onUpdate((event) => {
       'worklet'
       const translation = vertical ? event.translationY : event.translationX
+      // react-hooks/immutability flags this because translateOffset is a prop, but mutating a
+      // Reanimated SharedValue's .value is the correct way to drive it — not a prop reassignment.
+      // eslint-disable-next-line react-hooks/immutability
       translateOffset.value = Math.min(clampMax, Math.max(clampMin, closedOffset + translation))
     })
     .onEnd((event) => {
@@ -59,6 +62,8 @@ export const DrawerEdgeSwipe = ({ edgeInset = 0, enabled = true, height = 300, m
       const velocity = vertical ? event.velocityY : event.velocityX
       const commit = translation * openDirection > effectiveSize / 3 || velocity * openDirection > VELOCITY_THRESHOLD
       if (commit) {
+        // see onUpdate's comment above -- same SharedValue false positive
+        // eslint-disable-next-line react-hooks/immutability
         translateOffset.value = withSpring(restOffset, SPRING)
         runOnJS(onOpen)()
       } else {

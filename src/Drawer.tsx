@@ -191,6 +191,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
     // onOpened/onClosed deliberately excluded: both are plain closures (DrawerInstanceProvider passes a
     // fresh function every render), and including them would restart this spring from its current
     // position every time the parent re-renders for any unrelated reason.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, closedOffset, restOffset, translateOffset])
 
   useEffect(() => {
