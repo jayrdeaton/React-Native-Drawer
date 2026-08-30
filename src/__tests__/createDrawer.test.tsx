@@ -1,5 +1,4 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import React from 'react'
 import { BackHandler, View } from 'react-native'
 import { GestureDetector } from 'react-native-gesture-handler'
 import Animated, { withSpring } from 'react-native-reanimated'
@@ -15,7 +14,12 @@ const MockAddEventListener = BackHandler.addEventListener as unknown as jest.Moc
 // withSpring's 3rd arg is the finished-callback (passed on both the open and close paths); grabs
 // the most recent call so a test can simulate that spring settling, the trigger for isVisible
 // dropping false after a close.
-const finishCloseAnimation = () => act(() => [...MockWithSpring.mock.calls].reverse().find((call) => typeof call[2] === 'function')?.[2](true))
+const finishCloseAnimation = () =>
+  act(() =>
+    [...MockWithSpring.mock.calls]
+      .reverse()
+      .find((call) => typeof call[2] === 'function')?.[2](true)
+  )
 
 // Grabs the handler passed to the most recent BackHandler.addEventListener('hardwareBackPress', ...)
 // call, so a test can invoke it directly to simulate a hardware back-button press. Returns the
@@ -23,7 +27,9 @@ const finishCloseAnimation = () => act(() => [...MockWithSpring.mock.calls].reve
 const pressHardwareBack = (): boolean | undefined => {
   let consumed: boolean | undefined
   act(() => {
-    consumed = [...MockAddEventListener.mock.calls].reverse().find((call) => call[0] === 'hardwareBackPress')?.[1]()
+    consumed = [...MockAddEventListener.mock.calls]
+      .reverse()
+      .find((call) => call[0] === 'hardwareBackPress')?.[1]()
   })
   return consumed
 }
@@ -458,7 +464,7 @@ describe('createDrawer', () => {
       expect(panelStyle().height).toBe(800)
     })
 
-    it("opening rests below maxHeight, at just `height` px, not fully expanded", () => {
+    it('opening rests below maxHeight, at just `height` px, not fully expanded', () => {
       const { DrawerInstanceProvider, useDrawer } = createDrawer({ height: 300, maxHeight: 800, side: 'bottom' })
 
       const Consumer = () => {

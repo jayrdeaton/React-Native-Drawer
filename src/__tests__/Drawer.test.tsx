@@ -1,12 +1,12 @@
 import { BlurView, useBlur } from '@rific/auto-paper'
 import { act, render, type RenderResult, screen } from '@testing-library/react'
-import React, { type ReactElement } from 'react'
+import { type ReactElement } from 'react'
 import { useWindowDimensions, View } from 'react-native'
 import { GestureDetector } from 'react-native-gesture-handler'
 import Animated, { type SharedValue, withSpring } from 'react-native-reanimated'
 
-import { type AutoPaperModule, DrawerProvider } from '../DrawerConfig'
 import { Drawer } from '../Drawer'
+import { type AutoPaperModule, DrawerProvider } from '../DrawerConfig'
 
 const MockBlurView = BlurView as unknown as jest.Mock
 const mockUseBlur = useBlur as unknown as jest.Mock
@@ -859,7 +859,7 @@ describe('Drawer', () => {
       expect(panelShadowStyle().opacity).toBe(1)
     })
 
-    it('ramps smoothly across its own blurRadius + distance while dragging closed, unlike the handle strip\'s binary snap', () => {
+    it("ramps smoothly across its own blurRadius + distance while dragging closed, unlike the handle strip's binary snap", () => {
       // blurRadius 8 + distance 2 = a 10px fade distance; 5px of panel still visible is exactly
       // half that.
       renderDrawer(

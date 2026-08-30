@@ -1,5 +1,4 @@
 import { render } from '@testing-library/react'
-import React from 'react'
 
 import { type AutoPaperModule, configureDrawer, DrawerProvider, getDrawerConfig } from '../DrawerConfig'
 

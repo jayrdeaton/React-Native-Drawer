@@ -1,5 +1,4 @@
 import { render } from '@testing-library/react'
-import React from 'react'
 import { GestureDetector } from 'react-native-gesture-handler'
 import type { SharedValue } from 'react-native-reanimated'
 
