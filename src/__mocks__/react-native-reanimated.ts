@@ -3,8 +3,8 @@ import React from 'react'
 const stub = ({ children }: { children?: React.ReactNode }) => children ?? null
 
 export const useSharedValue = (initial: number) => {
-  const ref = React.useRef({ value: initial })
-  return ref.current
+  const [shared] = React.useState(() => ({ value: initial }))
+  return shared
 }
 
 export const useAnimatedStyle = (factory: () => Record<string, unknown>) => factory()
