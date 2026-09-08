@@ -15,7 +15,7 @@ npm run lint         # ESLint
 npm run fix          # ESLint --fix
 npm run build        # tsup, outputs CJS + ESM + types to dist/
 npm run build:watch  # tsup --watch
-npm test             # Jest (131 tests)
+npm test             # Jest (135 tests)
 npm run test:watch   # Jest in watch mode
 npm run typecheck    # TypeScript type check (tsc --noEmit)
 npm run verify       # lint + test + typecheck + build, in that order
@@ -84,8 +84,8 @@ From `src/index.ts`:
 
 - Framework: Jest (`@infinitetoken/jest-config/react-native`), jsdom environment
 - Mocks in `src/__mocks__/` for `react-native`, `react-native-paper`, `react-native-reanimated`, `react-native-gesture-handler`, `@rific/auto-paper`
-- 131 tests across 8 suites (see file list above)
-- Coverage (measured 2026-08-30): 99.57% statements, 96.55% branches, 100% functions, 100% lines — comfortably clears the shared preset's enforced 70% floor on all four metrics. No local `collectCoverageFrom`/`coverageThreshold` override; single entry point (`package.json` `exports` has no subpath conditions), so no subpath-barrel exception is needed either.
+- 135 tests across 8 suites (see file list above)
+- Coverage (measured 2026-09-05): 99.57% statements, 96.6% branches, 100% functions, 100% lines — comfortably clears the shared preset's enforced 70% floor on all four metrics. No local `collectCoverageFrom`/`coverageThreshold` override; single entry point (`package.json` `exports` has no subpath conditions), so no subpath-barrel exception is needed either.
 - `Drawer.tsx` and `useDrawerSize.ts` are the least-covered files (95.33% and 80% branch respectively) — a few edge-case branches (e.g. percentage-size zero-denominator guards) are exercised less than the rest.
 
 ## Code Style

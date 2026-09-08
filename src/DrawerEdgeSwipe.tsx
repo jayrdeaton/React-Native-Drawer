@@ -19,6 +19,15 @@ export type DrawerEdgeSwipeProps = {
   edgeInset?: number
   enabled?: boolean
   height?: DrawerDimension
+  // Shrink the strip's span along its long axis, to clear chrome (a header, a tab bar, ...) that
+  // would otherwise have its own touches stolen by this gesture — only the pair perpendicular to
+  // `side`'s own strip thickness applies: insetTop/insetBottom for a left/right drawer's vertical
+  // strip, insetLeft/insetRight for a top/bottom drawer's horizontal one. The other pair is
+  // ignored. All default to 0 (the strip's prior, full-length behavior).
+  insetBottom?: number
+  insetLeft?: number
+  insetRight?: number
+  insetTop?: number
   // Mirrors Drawer's own maxHeight: when set, an edge swipe still only opens to `height` (the rest
   // size), not all the way to this ceiling — matching Drawer's tap-to-open behavior, which also
   // lands at rest. Reaching past rest, up to maxHeight, is only ever done via Drawer's own handle.
@@ -31,7 +40,7 @@ export type DrawerEdgeSwipeProps = {
   width?: DrawerDimension
 }
 
-export const DrawerEdgeSwipe = ({ edgeInset = 0, enabled = true, height = 300, maxHeight, maxWidth, onOpen, side = 'left', translateOffset, width = 300 }: DrawerEdgeSwipeProps) => {
+export const DrawerEdgeSwipe = ({ edgeInset = 0, enabled = true, height = 300, insetBottom = 0, insetLeft = 0, insetRight = 0, insetTop = 0, maxHeight, maxWidth, onOpen, side = 'left', translateOffset, width = 300 }: DrawerEdgeSwipeProps) => {
   const vertical = isVerticalSide(side)
   const { closedOffset, effectiveSize, restOffset } = useDrawerSize(side, vertical ? height : width, vertical ? maxHeight : maxWidth, edgeInset)
   const openDirection = getOpenDirection(side)
@@ -71,7 +80,7 @@ export const DrawerEdgeSwipe = ({ edgeInset = 0, enabled = true, height = 300, m
       }
     })
 
-  const edgeStyle = vertical ? [styles.edgeHorizontal, side === 'top' ? styles.top : styles.bottom] : [styles.edgeVertical, side === 'left' ? styles.left : styles.right]
+  const edgeStyle = vertical ? [styles.edgeHorizontal, side === 'top' ? styles.top : styles.bottom, { left: insetLeft, right: insetRight }] : [styles.edgeVertical, side === 'left' ? styles.left : styles.right, { bottom: insetBottom, top: insetTop }]
 
   return (
     <GestureDetector gesture={gesture}>

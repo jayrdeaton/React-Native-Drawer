@@ -219,4 +219,38 @@ describe('DrawerEdgeSwipe', () => {
       expect(translateOffset.value).toBe(800)
     })
   })
+
+  describe('cross-axis insets', () => {
+    it("shrinks a left/right drawer's vertical strip using insetTop/insetBottom", () => {
+      const translateOffset = sharedValue(-300)
+      render(<DrawerEdgeSwipe insetBottom={64} insetTop={60} onOpen={jest.fn()} translateOffset={translateOffset} width={300} />)
+
+      const style = flattenStyle(lastGestureProps().children.props.style)
+      expect(style).toMatchObject({ bottom: 64, left: 0, top: 60, width: 24 })
+    })
+
+    it("shrinks a top/bottom drawer's horizontal strip using insetLeft/insetRight", () => {
+      const translateOffset = sharedValue(-250)
+      render(<DrawerEdgeSwipe height={250} insetLeft={16} insetRight={16} onOpen={jest.fn()} side='top' translateOffset={translateOffset} />)
+
+      const style = flattenStyle(lastGestureProps().children.props.style)
+      expect(style).toMatchObject({ height: 24, left: 16, right: 16, top: 0 })
+    })
+
+    it('ignores the parallel-axis inset pair (insetLeft/insetRight on a left/right drawer)', () => {
+      const translateOffset = sharedValue(-300)
+      render(<DrawerEdgeSwipe insetLeft={16} insetRight={16} onOpen={jest.fn()} translateOffset={translateOffset} width={300} />)
+
+      const style = flattenStyle(lastGestureProps().children.props.style)
+      expect(style).toMatchObject({ bottom: 0, left: 0, top: 0, width: 24 })
+    })
+
+    it('has no effect when omitted, matching prior behavior', () => {
+      const translateOffset = sharedValue(-300)
+      render(<DrawerEdgeSwipe onOpen={jest.fn()} translateOffset={translateOffset} width={300} />)
+
+      const style = flattenStyle(lastGestureProps().children.props.style)
+      expect(style).toMatchObject({ bottom: 0, left: 0, top: 0, width: 24 })
+    })
+  })
 })
