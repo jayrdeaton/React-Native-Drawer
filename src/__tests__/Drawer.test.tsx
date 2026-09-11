@@ -873,14 +873,20 @@ describe('Drawer', () => {
   })
 
   describe('blockingBackdrop', () => {
-    it('intercepts touches while open by default', () => {
+    // 'box-none', not 'auto': this wrapper is just a positioning shell around the dimming tint and
+    // the actual tap-catching view (see Drawer.tsx's own comment on backdropInteractionStyle) — an
+    // explicit zIndex here previously outranked the panel for every click on screen, even directly
+    // on the panel's own content, since panelClip (wrapping the panel) never sets its own zIndex.
+    // 'box-none' keeps this wrapper itself out of hit-testing while its child (the actual tap
+    // catcher, asserted separately below) still intercepts touches within its own bounds.
+    it('is transparent to hit-testing itself while open by default, deferring to its own tap-catching child', () => {
       renderDrawer(
         <Drawer onClose={jest.fn()} open>
           <span>drawer content</span>
         </Drawer>
       )
 
-      expect(flattenStyle(backdropCall()?.style).pointerEvents).toBe('auto')
+      expect(flattenStyle(backdropCall()?.style).pointerEvents).toBe('box-none')
     })
 
     it('never intercepts touches when blockingBackdrop is false, even while open', () => {
@@ -944,8 +950,9 @@ describe('Drawer', () => {
       )
 
       expect(flattenStyle(backdropTintCall()?.style).opacity).toBe(0)
-      // Still blocks touches by default: an undimmed backdrop isn't the same as a non-blocking one.
-      expect(flattenStyle(backdropCall()?.style).pointerEvents).toBe('auto')
+      // Still blocks touches by default: an undimmed backdrop isn't the same as a non-blocking one
+      // (see the blockingBackdrop describe block above for why this is 'box-none', not 'auto').
+      expect(flattenStyle(backdropCall()?.style).pointerEvents).toBe('box-none')
     })
   })
 
@@ -975,6 +982,55 @@ describe('Drawer', () => {
       // 2, not 1: the backdrop's own Gesture.Tap() always renders too (see the dismissible tests'
       // own comment on render order) — the handle's Gesture.Pan() is the second.
       expect(MockGestureDetector).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  describe('panelClip (closed panel must not inflate page scroll extent)', () => {
+    // Identified by pointerEvents='box-none' passed as a literal prop (not baked into style, unlike
+    // every other pointerEvents usage in Drawer.tsx) - the one thing nothing else in the component
+    // sets this way, so it's a clean, style-independent way to find this exact wrapper among all the
+    // plain View calls (which also include the contentSize-only content clip and the handle pill).
+    const panelClipCall = () => MockView.mock.calls.find((call) => call[0].pointerEvents === 'box-none')
+
+    it('wraps the panel in an unconditional, non-transformed overflow:hidden layer even while closed', () => {
+      renderDrawer(
+        <Drawer height={480} onClose={jest.fn()} open={false} side='bottom'>
+          <span>drawer content</span>
+        </Drawer>
+      )
+
+      const call = panelClipCall()
+      expect(call).toBeDefined()
+      const style = flattenStyle(call![0].style)
+      // Full mount area, not sized/offset to the panel itself - and no transform of its own, so a
+      // panel translated past its bounds (closedOffset, see geometry.ts) is clipped to THIS box's
+      // fixed edges rather than travelling with the panel the way styles.drawer's own bounds would.
+      expect(style.position).toBe('absolute')
+      expect(style.top).toBe(0)
+      expect(style.left).toBe(0)
+      expect(style.right).toBe(0)
+      expect(style.bottom).toBe(0)
+      expect(style.overflow).toBe('hidden')
+    })
+
+    it('is present regardless of open/closed state and side - the fix is unconditional, not a closed-only or side-specific patch', () => {
+      renderDrawer(
+        <Drawer onClose={jest.fn()} open side='left' width={300}>
+          <span>drawer content</span>
+        </Drawer>
+      )
+
+      expect(flattenStyle(panelClipCall()![0].style).overflow).toBe('hidden')
+    })
+
+    it('does not put overflow:hidden on the panel itself (styles.drawer) - that would clip the handle strip, which is deliberately positioned outside the panel bounds', () => {
+      renderDrawer(
+        <Drawer onClose={jest.fn()} open side='right' width={300}>
+          <span>drawer content</span>
+        </Drawer>
+      )
+
+      expect(drawerPanelStyle().overflow).toBeUndefined()
     })
   })
 

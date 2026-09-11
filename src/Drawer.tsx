@@ -212,7 +212,27 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   // transparent, matching "closed," since a not-yet-sized panel isn't meaningfully open yet either.
   const backdropStyle = useAnimatedStyle(() => ({ opacity: maxEffectiveSize > 0 ? (1 - Math.abs(translateOffset.value) / maxEffectiveSize) * backdropOpacity : 0 }))
   const animatedSizeStyle = useAnimatedStyle(() => (vertical ? { height: animatedSize.value } : { width: animatedSize.value }))
-  const backdropInteractionStyle: ViewStyle = { zIndex, pointerEvents: open && blockingBackdrop ? 'auto' : 'none' }
+  // 'box-none' (not 'auto'): this wrapper is just a positioning shell around the dimming tint and
+  // the actual tap-catching view below — on react-native-web, an ancestor's own explicit zIndex
+  // wins hit-testing over a plain-DOM-order sibling's z-index:auto descendants (panelClip, wrapping
+  // the panel, never sets its own zIndex — only ITS child does), so this wrapper being 'auto' made
+  // its own full-screen box outrank the panel for every click anywhere on screen, even where the
+  // panel visually covers it — a tap on real panel content (e.g. a settings toggle) would land on
+  // this inert wrapper instead and silently do nothing. 'box-none' keeps the wrapper itself out of
+  // hit-testing while still letting its own children (the tap-catcher below) receive touches within
+  // their own (now-shrunk, see backdropTapAreaStyle) bounds — exactly the "auto" behavior this was
+  // meant to have, minus the container falsely claiming space it doesn't actually own.
+  const backdropInteractionStyle: ViewStyle = { zIndex, pointerEvents: open && blockingBackdrop ? 'box-none' : 'none' }
+  // react-native-gesture-handler's web backend resolves a Gesture.Tap's hit region from this
+  // view's own measured bounds, not from real DOM occlusion/z-index the way native UIKit/Android
+  // hit-testing does — so on web, a tap landing anywhere on the (opaque, higher-zIndex) panel on
+  // top of this backdrop was still satisfying the backdrop's OWN Tap gesture underneath it,
+  // closing the drawer out from under a perfectly normal tap on its content (e.g. a toggle inside
+  // a settings panel). Native is unaffected (its real view hierarchy already occludes correctly),
+  // but shrinking this view's own bounds to exclude the panel's footprint is correct on every
+  // platform regardless — that region was always hidden behind the opaque panel anyway, so this
+  // changes nothing observable, it just stops the gesture from being reachable there at all.
+  const backdropTapAreaStyle: ViewStyle = side === 'left' ? { left: maxEffectiveSize } : side === 'right' ? { right: maxEffectiveSize } : side === 'top' ? { top: maxEffectiveSize } : { bottom: maxEffectiveSize }
 
   const positionStyle = side === 'left' ? styles.anchorLeft : side === 'right' ? styles.anchorRight : side === 'top' ? styles.anchorTop : styles.anchorBottom
   // maxEffectiveSize, not the raw height/width prop: the box must be big enough to show the panel
@@ -464,34 +484,58 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
           {/* collapsable={false}: this view has no paint properties of its own (no background,
           no animated style), exactly the shape React Native's view-flattening optimizer removes
           from the native tree on native platforms — leaving the GestureDetector above with no real
-          view left to attach its tap recognizer to, so it would silently never receive a touch. */}
-          <Animated.View collapsable={false} style={StyleSheet.absoluteFill} />
+          view left to attach its tap recognizer to, so it would silently never receive a touch.
+          backdropTapAreaStyle shrinks this view's own bounds to exclude the panel's footprint —
+          see its own comment above for why that matters specifically on web. */}
+          <Animated.View collapsable={false} style={[StyleSheet.absoluteFill, backdropTapAreaStyle]} />
         </GestureDetector>
       </Animated.View>
-      <Animated.View style={drawerOuterStyle}>
-        {/* pointerEvents='none': purely decorative, drawn outside the panel's own box (a directional
-            box-shadow never paints over the box's own content area), so it has no business
-            intercepting anything even at full opacity. Absolutely filled to the panel's own current
-            bounds, contentSize included, rather than a fixed size, so it tracks that animation too. */}
-        {resolvedPanelShadow && <Animated.View pointerEvents='none' style={[StyleSheet.absoluteFill, panelShadowStyle, panelShadowVisibilityStyle]} />}
-        {contentSize ? <View style={contentClipStyle}>{fill}</View> : fill}
-        {dismissible && (
-          <GestureDetector gesture={handleGesture}>
-            {/* pointerEvents mirrors handleGesture's own .enabled(open) above, the same way the
-                backdrop's tap-catcher mirrors backdropTapGesture's .enabled(open && blockingBackdrop)
-                just above — handleVisibilityStyle's opacity already fades this strip out once the
-                panel's closed, but opacity alone doesn't stop hit-testing on web/Android (unlike iOS,
-                which excludes opacity-0 views from hit-testing regardless of pointerEvents — see the
-                backdrop tint's own comment on that asymmetry). Left at 'auto' while closed, this
-                48px-wide strip sits at zIndex+2 flush against the screen edge closest to `side` —
-                easy to land a consumer's own edge-anchored chrome (an app bar icon, say) in that same
-                band — and swallows taps meant for whatever's underneath it despite being invisible
-                AND, since the gesture itself is disabled here too, unable to do anything with them
-                either. */}
-            <Animated.View style={[styles.handleStrip, handleStripSizeStyle, handleStripEdgeStyle, handleStripPaddingStyle, webCursorStyle, handleVisibilityStyle, handleStripInteractionStyle]}>{showHandle && <View style={[styles.handlePill, handlePillStyle, { backgroundColor: colors.surface }]} />}</Animated.View>
-          </GestureDetector>
-        )}
-      </Animated.View>
+      {/* panelClip is a NEW, unconditional clipping ancestor around the panel — NOT the same box as
+          drawerOuterStyle/styles.drawer, and deliberately not itself transformed. drawerOuterStyle
+          carries the open/closed translate (drawerStyle) and is anchored flush to its edge at its
+          FULL maxEffectiveSize (sizeStyle) — so a "closed" panel is never actually removed from the
+          tree, only slid to closedOffset, which for side='right'/'bottom' lands at a POSITIVE
+          coordinate just past the visible edge (see geometry.ts's getClosedOffset — left/top land at
+          NEGATIVE coordinates instead, which ordinary page scroll can't reach, which is why this only
+          ever showed up on right/bottom drawers). With nothing upstream constraining that positive
+          offset, react-native-web's host page treats the translated-but-still-full-size panel as real
+          document content sitting just outside the viewport, which grows the page's scrollable area —
+          scrolling into it reveals a fully rendered "closed" panel. Adding overflow:'hidden' directly
+          to styles.drawer itself is NOT the fix: that's the same box the transform moves, so its own
+          clip region would travel with it and cut off the handle strip below, which is deliberately
+          positioned outside drawerOuterStyle's bounds (see its own comment). panelClip instead fills
+          the drawer's whole mount area (never itself transformed) and clips ITS bounds, which stay
+          fixed regardless of where the translated panel inside it currently sits — so the handle strip
+          (well within panelClip's much larger box) is unaffected, while a closed panel translated past
+          panelClip's edge is clipped from paint and stops contributing to page scroll extent.
+          pointerEvents='box-none': this wrapper spans the full mount area purely to establish the clip
+          boundary — it must never itself catch a touch, only its real content underneath should. */}
+      <View pointerEvents='box-none' style={styles.panelClip}>
+        <Animated.View style={drawerOuterStyle}>
+          {/* pointerEvents='none': purely decorative, drawn outside the panel's own box (a directional
+              box-shadow never paints over the box's own content area), so it has no business
+              intercepting anything even at full opacity. Absolutely filled to the panel's own current
+              bounds, contentSize included, rather than a fixed size, so it tracks that animation too. */}
+          {resolvedPanelShadow && <Animated.View pointerEvents='none' style={[StyleSheet.absoluteFill, panelShadowStyle, panelShadowVisibilityStyle]} />}
+          {contentSize ? <View style={contentClipStyle}>{fill}</View> : fill}
+          {dismissible && (
+            <GestureDetector gesture={handleGesture}>
+              {/* pointerEvents mirrors handleGesture's own .enabled(open) above, the same way the
+                  backdrop's tap-catcher mirrors backdropTapGesture's .enabled(open && blockingBackdrop)
+                  just above — handleVisibilityStyle's opacity already fades this strip out once the
+                  panel's closed, but opacity alone doesn't stop hit-testing on web/Android (unlike iOS,
+                  which excludes opacity-0 views from hit-testing regardless of pointerEvents — see the
+                  backdrop tint's own comment on that asymmetry). Left at 'auto' while closed, this
+                  48px-wide strip sits at zIndex+2 flush against the screen edge closest to `side` —
+                  easy to land a consumer's own edge-anchored chrome (an app bar icon, say) in that same
+                  band — and swallows taps meant for whatever's underneath it despite being invisible
+                  AND, since the gesture itself is disabled here too, unable to do anything with them
+                  either. */}
+              <Animated.View style={[styles.handleStrip, handleStripSizeStyle, handleStripEdgeStyle, handleStripPaddingStyle, webCursorStyle, handleVisibilityStyle, handleStripInteractionStyle]}>{showHandle && <View style={[styles.handlePill, handlePillStyle, { backgroundColor: colors.surface }]} />}</Animated.View>
+            </GestureDetector>
+          )}
+        </Animated.View>
+      </View>
     </>
   )
 }
@@ -545,5 +589,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'absolute'
+  },
+  // See the comment above <View style={styles.panelClip}> in the render — the unconditional clip
+  // ancestor that keeps a translated-off-screen "closed" panel from inflating page scroll extent.
+  panelClip: {
+    bottom: 0,
+    left: 0,
+    overflow: 'hidden',
+    position: 'absolute',
+    right: 0,
+    top: 0
   }
 })

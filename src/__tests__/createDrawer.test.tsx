@@ -324,7 +324,8 @@ describe('createDrawer', () => {
       </DrawerInstanceProvider>
     )
     fireEvent.click(screen.getByText('open'))
-    expect(backdropPointerEvents()).toBe('auto')
+    // 'box-none', not 'auto' — see Drawer.test.tsx's blockingBackdrop describe block for why.
+    expect(backdropPointerEvents()).toBe('box-none')
   })
 
   it('backdropOpacity: settable at the factory level and overridden per-mount', () => {
