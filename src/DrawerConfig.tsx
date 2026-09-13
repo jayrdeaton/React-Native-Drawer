@@ -1,3 +1,4 @@
+import { createModuleConfig } from '@rific/core'
 import { type ComponentType, type ReactNode } from 'react'
 import type { LayoutChangeEvent, StyleProp, ViewStyle } from 'react-native'
 
@@ -17,32 +18,17 @@ export type DrawerConfig = {
   autoPaper?: AutoPaperModule
 }
 
-let config: DrawerConfig = {}
-
-// Plain module-level config rather than React Context: this is one-time app setup ("does
-// this app have @rific/auto-paper?"), not per-render reactive state, so a Provider that has
-// to exist just to thread a value through the tree is more ceremony than the problem needs.
-// Call this directly, or mount <DrawerProvider> once near your app root (it just calls this
-// for you). Not reactive: calling it again after components have already rendered won't
-// retroactively update them, fine for one-time startup config, not for runtime toggling.
+// @rific/core's createModuleConfig() supplies the module-level config singleton (configure/
+// getConfig/Provider) every @rific package wires up the same way - see its own doc comment for
+// why this is plain module state rather than React Context.
 //
 // Not to be confused with the per-instance provider createDrawer() returns
 // (DrawerInstanceProvider): this one is app-wide, mounted once, for optional peer config;
 // that one is per-drawer, mounted once per createDrawer() call, for that drawer's own state.
-export const configureDrawer = (next: DrawerConfig) => {
-  config = { ...config, ...next }
-}
+const drawerConfig = createModuleConfig<DrawerConfig>()
 
-export const getDrawerConfig = (): DrawerConfig => config
+export const configureDrawer = drawerConfig.configure
+export const getDrawerConfig = drawerConfig.getConfig
+export const DrawerProvider = drawerConfig.Provider
 
 export type DrawerProviderProps = DrawerConfig & { children: ReactNode }
-
-// Thin wrapper around configureDrawer() for consumers who'd rather mount a Provider than call
-// a setup function directly: every @rific package wires up the same way this way. Calls
-// configureDrawer() synchronously during render (not in an effect), so the config is already
-// set by the time any descendant <Drawer> renders. Effects run bottom-up after children have
-// already rendered once, which would be one render too late here.
-export const DrawerProvider = ({ autoPaper, children }: DrawerProviderProps) => {
-  configureDrawer({ autoPaper })
-  return <>{children}</>
-}
