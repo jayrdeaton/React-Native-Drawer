@@ -45,8 +45,8 @@ const sharedValue = (initial: number) => ({ value: initial }) as SharedValue<num
 const flattenStyle = (style: unknown): Record<string, unknown> => (Array.isArray(style) ? style : [style]).reduce((acc: Record<string, unknown>, s) => ({ ...acc, ...(s as Record<string, unknown>) }), {})
 
 const drawerPanelStyle = (zIndex = 50) => flattenStyle(MockAnimatedView.mock.calls.find((call) => flattenStyle(call[0].style).zIndex === zIndex + 1)?.[0].style)
-// The backdrop's own outer wrapper — carries zIndex and pointerEvents (both inside style now, not
-// pointerEvents as a bare prop — see Drawer.tsx's own comment on why), but no longer opacity, which
+// The backdrop's own outer wrapper — carries zIndex (in style) and pointerEvents (as the prop, not
+// inside style — see Drawer.tsx's own comment on why: inline box-none breaks on react-native-web), but no longer opacity, which
 // moved to its child backdropTint (see backdropTintCall below) once the dimming layer and the
 // tap-to-close hit target split into separate views.
 const backdropCall = () => MockAnimatedView.mock.calls.find((call) => flattenStyle(call[0].style).zIndex === 50)?.[0]
@@ -886,7 +886,7 @@ describe('Drawer', () => {
         </Drawer>
       )
 
-      expect(flattenStyle(backdropCall()?.style).pointerEvents).toBe('box-none')
+      expect(backdropCall()?.pointerEvents).toBe('box-none')
     })
 
     it('never intercepts touches when blockingBackdrop is false, even while open', () => {
@@ -896,7 +896,7 @@ describe('Drawer', () => {
         </Drawer>
       )
 
-      expect(flattenStyle(backdropCall()?.style).pointerEvents).toBe('none')
+      expect(backdropCall()?.pointerEvents).toBe('none')
     })
   })
 
@@ -952,7 +952,7 @@ describe('Drawer', () => {
       expect(flattenStyle(backdropTintCall()?.style).opacity).toBe(0)
       // Still blocks touches by default: an undimmed backdrop isn't the same as a non-blocking one
       // (see the blockingBackdrop describe block above for why this is 'box-none', not 'auto').
-      expect(flattenStyle(backdropCall()?.style).pointerEvents).toBe('box-none')
+      expect(backdropCall()?.pointerEvents).toBe('box-none')
     })
   })
 
