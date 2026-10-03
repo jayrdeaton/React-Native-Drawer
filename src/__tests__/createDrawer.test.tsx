@@ -53,7 +53,7 @@ const verticalEvent = (translationY: number, velocityY: number) => ({ translatio
 // backdropTintCall in Drawer.test.tsx.
 const backdropCall = () => [...MockAnimatedView.mock.calls].reverse().find((call) => flattenStyle(call[0].style).zIndex === 50)?.[0]
 const backdropTintCall = () => [...MockAnimatedView.mock.calls].reverse().find((call) => flattenStyle(call[0].style).backgroundColor === '#000')?.[0]
-const backdropPointerEvents = () => flattenStyle(backdropCall()?.style).pointerEvents
+const backdropPointerEvents = () => backdropCall()?.pointerEvents
 const backdropOpacityValue = () => flattenStyle(backdropTintCall()?.style).opacity
 // The panel's own zIndex is always exactly one more than the backdrop's (Drawer.tsx: zIndex + 1),
 // regardless of the configured base zIndex — not positional, since backdropTint and the

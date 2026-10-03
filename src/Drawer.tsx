@@ -214,15 +214,23 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   const animatedSizeStyle = useAnimatedStyle(() => (vertical ? { height: animatedSize.value } : { width: animatedSize.value }))
   // 'box-none' (not 'auto'): this wrapper is just a positioning shell around the dimming tint and
   // the actual tap-catching view below — on react-native-web, an ancestor's own explicit zIndex
-  // wins hit-testing over a plain-DOM-order sibling's z-index:auto descendants (panelClip, wrapping
-  // the panel, never sets its own zIndex — only ITS child does), so this wrapper being 'auto' made
+  // wins hit-testing over a plain-DOM-order sibling's lower-tier descendants (the panel lives inside
+  // panelClip, which now carries the panel's tier itself — see its comment), so this wrapper being 'auto' made
   // its own full-screen box outrank the panel for every click anywhere on screen, even where the
   // panel visually covers it — a tap on real panel content (e.g. a settings toggle) would land on
   // this inert wrapper instead and silently do nothing. 'box-none' keeps the wrapper itself out of
   // hit-testing while still letting its own children (the tap-catcher below) receive touches within
   // their own (now-shrunk, see backdropTapAreaStyle) bounds — exactly the "auto" behavior this was
   // meant to have, minus the container falsely claiming space it doesn't actually own.
-  const backdropInteractionStyle: ViewStyle = { zIndex, pointerEvents: open && blockingBackdrop ? 'box-none' : 'none' }
+  //
+  //
+  // Passed as the pointerEvents PROP, not inside style. On react-native-web a style
+  // `pointerEvents: 'box-none'` is written inline as a plain CSS `pointer-events: none`, with nothing
+  // switching the children back on - and Animated.View flattens styles to inline, so even a
+  // StyleSheet one ends up that way. The tap-catcher below inherited `none`, so a tap beside an open
+  // drawer fell straight through to the screen under it. The prop becomes RNW's box-none class,
+  // which does re-enable the children; it's how the tint and panelClip already set theirs.
+  const backdropPointerEvents = open && blockingBackdrop ? 'box-none' : 'none'
   // react-native-gesture-handler's web backend resolves a Gesture.Tap's hit region from this
   // view's own measured bounds, not from real DOM occlusion/z-index the way native UIKit/Android
   // hit-testing does — so on web, a tap landing anywhere on the (opaque, higher-zIndex) panel on
@@ -469,7 +477,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
 
   return (
     <>
-      <Animated.View style={[styles.backdropPosition, backdropInteractionStyle]}>
+      <Animated.View pointerEvents={backdropPointerEvents} style={[styles.backdropPosition, { zIndex }]}>
         {/* The dimming tint is its own child, carrying the actual black backgroundColor and
         backdropStyle's animated opacity, separate from the tap-catching view below and from the
         OUTER container above (which must stay paint-free, not just visually transparent at
@@ -509,8 +517,13 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
           (well within panelClip's much larger box) is unaffected, while a closed panel translated past
           panelClip's edge is clipped from paint and stops contributing to page scroll extent.
           pointerEvents='box-none': this wrapper spans the full mount area purely to establish the clip
-          boundary — it must never itself catch a touch, only its real content underneath should. */}
-      <View pointerEvents='box-none' style={styles.panelClip}>
+          boundary — it must never itself catch a touch, only its real content underneath should.
+          zIndex + 1 (the panel's own tier) ON panelClip itself: react-native-web gives every View
+          z-index 0, which makes panelClip a stacking context of its own, so the panel's zIndex + 1
+          only ranks it inside panelClip. Without a tier here, the backdrop (zIndex, a sibling of
+          panelClip) painted over the whole panel, tint included, and an open drawer's own content
+          read as dimmed and disabled. */}
+      <View pointerEvents='box-none' style={[styles.panelClip, { zIndex: zIndex + 1 }]}>
         <Animated.View style={drawerOuterStyle}>
           {/* pointerEvents='none': purely decorative, drawn outside the panel's own box (a directional
               box-shadow never paints over the box's own content area), so it has no business
