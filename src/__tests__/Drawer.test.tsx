@@ -372,6 +372,42 @@ describe('Drawer', () => {
     })
   })
 
+  describe('window clamp', () => {
+    // A 360x780 phone, narrower than the 380px panel each spec asks for.
+    beforeEach(() => MockUseWindowDimensions.mockReturnValue({ fontScale: 1, height: 780, scale: 1, width: 360 }))
+    afterEach(() => MockUseWindowDimensions.mockReturnValue({ fontScale: 1, height: 800, scale: 1, width: 400 }))
+
+    it('renders a px width wider than the window at the window width, so its far edge stays on screen', () => {
+      renderDrawer(
+        <Drawer onClose={jest.fn()} open width={380}>
+          <span>drawer content</span>
+        </Drawer>
+      )
+
+      expect(drawerPanelStyle().width).toBe(360)
+    })
+
+    it('seeds its own closed offset from the capped width, so the closed panel sits flush against the edge', () => {
+      renderDrawer(
+        <Drawer onClose={jest.fn()} open={false} width={380}>
+          <span>drawer content</span>
+        </Drawer>
+      )
+
+      expect(drawerPanelStyle().transform).toEqual([{ translateX: -360 }])
+    })
+
+    it('leaves a width that fits the window untouched', () => {
+      renderDrawer(
+        <Drawer onClose={jest.fn()} open width={300}>
+          <span>drawer content</span>
+        </Drawer>
+      )
+
+      expect(drawerPanelStyle().width).toBe(300)
+    })
+  })
+
   describe('maxHeight/maxWidth (expandable sheets)', () => {
     const verticalEvent = (translationY: number, velocityY: number) => ({ translationX: 0, translationY, velocityX: 0, velocityY })
 

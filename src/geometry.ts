@@ -28,6 +28,16 @@ export function resolveDimension(value: DrawerDimension, windowSize: number): nu
   return typeof value === 'number' ? value : (Number.parseFloat(value) / 100) * windowSize
 }
 
+// Caps a resolved size at the window's own size along the drawer's axis. A panel anchored flush to
+// one edge can never show anything past the opposite one, so a fixed `width: 380` on a 360px-wide
+// phone would otherwise just cut off its own far edge (and everything laid out against it) rather
+// than fill the screen. A windowSize of 0 means the window hasn't been measured yet (web, briefly,
+// before hydration), not a 0px screen: the size passes through untouched then, or a px-sized
+// drawer would seed its closed offset at 0 and visibly slide shut once the real size arrives.
+export function clampToWindow(size: number, windowSize: number): number {
+  return windowSize > 0 ? Math.min(size, windowSize) : size
+}
+
 // How far past `height`/`width` (its rest size) an expandable sheet currently is, as a 0-1
 // fraction: 0 anywhere at or before rest (closed, or resting - nothing to indicate, since the
 // panel isn't showing any more than its configured rest size), 1 once fully expanded to

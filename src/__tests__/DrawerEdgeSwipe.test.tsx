@@ -1,10 +1,12 @@
 import { render } from '@testing-library/react'
+import { useWindowDimensions } from 'react-native'
 import { GestureDetector } from 'react-native-gesture-handler'
 import type { SharedValue } from 'react-native-reanimated'
 
 import { DrawerEdgeSwipe } from '../DrawerEdgeSwipe'
 
 const MockGestureDetector = GestureDetector as unknown as jest.Mock
+const MockUseWindowDimensions = useWindowDimensions as unknown as jest.Mock
 
 type MockedGesture = { __getHandlers: () => { enabled: boolean; onEnd?: (event: { translationX: number; translationY: number; velocityX: number; velocityY: number }) => void; onUpdate?: (event: { translationX: number; translationY: number; velocityX: number; velocityY: number }) => void } }
 
@@ -73,6 +75,45 @@ describe('DrawerEdgeSwipe', () => {
 
     onUpdate?.(event(-1000, 0))
     expect(translateOffset.value).toBe(-300)
+  })
+
+  describe('window clamp', () => {
+    // A 360x780 phone, narrower than the 380px width each spec asks for: the gesture has to agree
+    // with a same-configured Drawer, which renders at 360 there (see its own window clamp specs).
+    beforeEach(() => MockUseWindowDimensions.mockReturnValue({ fontScale: 1, height: 780, scale: 1, width: 360 }))
+    afterEach(() => MockUseWindowDimensions.mockReturnValue({ fontScale: 1, height: 800, scale: 1, width: 400 }))
+
+    it('clamps a drag to the capped closed offset, not the wider px width', () => {
+      const translateOffset = sharedValue(-360)
+      render(<DrawerEdgeSwipe onOpen={jest.fn()} translateOffset={translateOffset} width={380} />)
+
+      const { onUpdate } = lastGesture()
+      onUpdate?.(event(-1000, 0))
+      expect(translateOffset.value).toBe(-360)
+
+      onUpdate?.(event(1000, 0))
+      expect(translateOffset.value).toBe(0)
+    })
+
+    it('measures its commit threshold against the capped width', () => {
+      const onOpen = jest.fn()
+      const translateOffset = sharedValue(-360)
+      render(<DrawerEdgeSwipe onOpen={onOpen} translateOffset={translateOffset} width={380} />)
+
+      // 125 clears a third of 360 (120) but not a third of 380 (~126.7).
+      lastGesture().onEnd?.(event(125, 0))
+
+      expect(onOpen).toHaveBeenCalledTimes(1)
+    })
+
+    it('snaps back to the capped closed offset on a short drag', () => {
+      const translateOffset = sharedValue(-360)
+      render(<DrawerEdgeSwipe onOpen={jest.fn()} translateOffset={translateOffset} width={380} />)
+
+      lastGesture().onEnd?.(event(50, 0))
+
+      expect(translateOffset.value).toBe(-360)
+    })
   })
 
   it('passes enabled through to the gesture', () => {

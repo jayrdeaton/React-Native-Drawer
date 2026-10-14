@@ -15,7 +15,7 @@ npm run lint         # ESLint
 npm run fix          # ESLint --fix
 npm run build        # tsup, outputs CJS + ESM + types to dist/
 npm run build:watch  # tsup --watch
-npm test             # Jest (135 tests)
+npm test             # Jest (157 tests)
 npm run test:watch   # Jest in watch mode
 npm run typecheck    # TypeScript type check (tsc --noEmit)
 npm run verify       # lint + test + typecheck + build, in that order
@@ -38,8 +38,8 @@ npm run release:patch   # npm version patch && git push --follow-tags (or releas
 ```
 src/
   index.ts                              - all public exports
-  geometry.ts                           - pure math: DrawerSide/DrawerDimension types, isVerticalSide, getClosedOffset, getOpenDirection, resolveDimension, getExpandProgress
-  useDrawerSize.ts                      - hook: resolves a drawer's percentage-or-px size props (plus optional expand ceiling) against the current window size into closedOffset/effectiveSize/maxEffectiveSize/restOffset; shared by Drawer, DrawerEdgeSwipe, and createDrawer so all three agree on geometry
+  geometry.ts                           - pure math: DrawerSide/DrawerDimension types, isVerticalSide, getClosedOffset, getOpenDirection, resolveDimension, clampToWindow, getExpandProgress
+  useDrawerSize.ts                      - hook: resolves a drawer's percentage-or-px size props (plus optional expand ceiling) against the current window size into closedOffset/effectiveSize/maxEffectiveSize/restOffset, capping both sizes at the window size (clampToWindow, skipped while the window still reads 0 before web hydration); shared by Drawer, DrawerEdgeSwipe, and createDrawer so all three agree on geometry, and exported so apps driving Drawer standalone can seed translateOffset from the same closedOffset
   Drawer.tsx                            - the sliding panel itself: backdrop (tap-to-close), spring-animated panel, optional content-driven sizing, optional drag handle (dismiss + expand), optional panel shadow, optional blur fill (via injected auto-paper)
   DrawerEdgeSwipe.tsx                   - a thin invisible strip along one screen edge; a pan gesture drags the panel open and commits/snaps-back based on distance or velocity
   createDrawer.tsx                      - factory: one call per drawer instance. Returns { DrawerInstanceProvider, useDrawer }, backed by a private React Context; wires Drawer + DrawerEdgeSwipe + Android back-button handling together. Also exports combineDrawerProviders to flatten nesting multiple instances
@@ -58,6 +58,7 @@ src/
     createDrawer.test.tsx
     combineDrawerProviders.test.tsx
     geometry.test.ts
+    useDrawerSize.test.ts
     index.test.ts                       - asserts the public export surface
 ```
 
@@ -69,6 +70,7 @@ From `src/index.ts`:
 - `Drawer`, `DrawerProps` - the underlying panel component, for consumers who want to drive it directly instead of through `createDrawer()`
 - `DrawerEdgeSwipe`, `DrawerEdgeSwipeProps` - the underlying edge-swipe-to-open strip
 - `configureDrawer`, `getDrawerConfig`, `DrawerProvider` - one-time app-wide peer-module injection (auto-paper blur support); `DrawerConfig`, `DrawerProviderProps`, `AutoPaperModule` (types)
+- `useDrawerSize`, `DrawerSize` - the hook every piece above resolves its geometry with (capped at the window size), for seeding a standalone `Drawer`'s `translateOffset` at `closedOffset` and sizing content to the panel's `effectiveSize`
 - `DrawerDimension`, `DrawerSide` (types only)
 
 ## Peer Dependencies
@@ -84,7 +86,7 @@ From `src/index.ts`:
 
 - Framework: Jest (`@infinitetoken/jest-config/react-native`), jsdom environment
 - Mocks in `src/__mocks__/` for `react-native`, `react-native-paper`, `react-native-reanimated`, `react-native-gesture-handler`, `@rific/auto-paper`
-- 135 tests across 8 suites (see file list above)
+- 157 tests across 9 suites (see file list above)
 - Coverage (measured 2026-09-05): 99.57% statements, 96.6% branches, 100% functions, 100% lines - comfortably clears the shared preset's enforced 70% floor on all four metrics. No local `collectCoverageFrom`/`coverageThreshold` override; single entry point (`package.json` `exports` has no subpath conditions), so no subpath-barrel exception is needed either.
 - `Drawer.tsx` and `useDrawerSize.ts` are the least-covered files (95.33% and 80% branch respectively) - a few edge-case branches (e.g. percentage-size zero-denominator guards) are exercised less than the rest.
 

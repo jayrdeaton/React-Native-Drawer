@@ -28,7 +28,7 @@ const { DrawerInstanceProvider: SettingsDrawerProvider, useDrawer: useSettingsDr
 const { DrawerInstanceProvider: SheetProvider, useDrawer: useSheet } = createDrawer({ side: 'bottom', height: 400 })
 ```
 
-`side` accepts `'left'`, `'right'`, `'top'`, or `'bottom'` (default `'left'`). `left`/`right` drawers size themselves with `width` (default `300`); `top`/`bottom` sheets use `height` instead (same default). Only the prop matching the chosen axis matters: pass `width` for a horizontal drawer, `height` for a vertical one. Either accepts a plain pixel number or a percentage string (`height: '50%'`) resolved against the window's height/width, re-resolving automatically on rotation/resize.
+`side` accepts `'left'`, `'right'`, `'top'`, or `'bottom'` (default `'left'`). `left`/`right` drawers size themselves with `width` (default `300`); `top`/`bottom` sheets use `height` instead (same default). Only the prop matching the chosen axis matters: pass `width` for a horizontal drawer, `height` for a vertical one. Either accepts a plain pixel number or a percentage string (`height: '50%'`) resolved against the window's height/width, re-resolving automatically on rotation/resize. Either way, the resolved size is capped at the window's own size along that axis (the same goes for `maxHeight`/`maxWidth` below), so a fixed `width: 380` drawer fills a 360px-wide phone exactly instead of running its far edge off the screen, and stays 380 on anything wider.
 
 Mount each `DrawerInstanceProvider` once, near your app root: `children` is the rest of the app (so `useDrawer()` is reachable from anywhere inside it), and `content` is what renders inside the sliding panel itself. With more than one drawer, `combineDrawerProviders` flattens the nesting into a single wrapper (first argument is outermost, matching how you'd nest them by hand):
 
@@ -179,6 +179,31 @@ Only the panel surface blurs; the backdrop behind it stays solid, same as today.
 ## Lower-level pieces
 
 `Drawer` (the sliding panel and backdrop) and `DrawerEdgeSwipe` (the edge gesture zone) are also exported directly, for apps that want to manage the open/closed state and shared value themselves instead of using `createDrawer()`. Both take a `translateOffset` prop, a `SharedValue<number>` holding the panel's offset along its axis (`translateX` for `left`/`right`, `translateY` for `top`/`bottom`), so `DrawerEdgeSwipe`'s gesture and `Drawer`'s spring animation can share the same value.
+
+Seed that shared value at the drawer's closed offset with `useDrawerSize`, the same hook `Drawer`, `DrawerEdgeSwipe` and `createDrawer()` resolve their own geometry with, rather than negating the size by hand: a hand-negated `-380` disagrees with a panel that's been capped to a narrower window (see [Usage](#usage)). Pass it the same `side`, size, max size and `edgeInset` the `Drawer` gets. Its `effectiveSize` is also the panel's actual rest size in px, for laying out anything sized to the panel itself (a full-width carousel page, say):
+
+```tsx
+import { Drawer, DrawerEdgeSwipe, useDrawerSize } from '@rific/drawer'
+import { useSharedValue } from 'react-native-reanimated'
+
+const WIDTH = 380
+
+const MenuDrawer = ({ open, onOpen, onClose }: MenuDrawerProps) => {
+  const { closedOffset, effectiveSize } = useDrawerSize('left', WIDTH)
+  const translateOffset = useSharedValue(closedOffset)
+
+  return (
+    <>
+      <DrawerEdgeSwipe onOpen={onOpen} translateOffset={translateOffset} width={WIDTH} />
+      <Drawer onClose={onClose} open={open} translateOffset={translateOffset} width={WIDTH}>
+        <Carousel pageWidth={effectiveSize} />
+      </Drawer>
+    </>
+  )
+}
+```
+
+The seed only matters for the very first frame: after that, `Drawer` springs the value to its own closed offset whenever that changes (rotation, a resize across the cap).
 
 If you're driving `Drawer` standalone with `contentSize` and want `DrawerEdgeSwipe`'s own commit-threshold math to track the measured size too, pass `Drawer` an `onMeasure?: (size: number) => void` and feed the result into the `height`/`width` you pass `DrawerEdgeSwipe`: this is exactly what `createDrawer()` does internally.
 

@@ -1,6 +1,6 @@
 import { useWindowDimensions } from 'react-native'
 
-import { type DrawerDimension, type DrawerSide, getClosedOffset, isVerticalSide, resolveDimension } from './geometry'
+import { clampToWindow, type DrawerDimension, type DrawerSide, getClosedOffset, isVerticalSide, resolveDimension } from './geometry'
 
 export type DrawerSize = {
   // The panel's rest size, in px: what it opens to by default, and what a drag-to-close gesture
@@ -23,6 +23,17 @@ export type DrawerSize = {
 // current window size into concrete offsets, shared by Drawer, DrawerEdgeSwipe, and createDrawer
 // so all three always agree on where "closed"/"rest"/"expanded" actually are.
 //
+// Also exported, for apps driving Drawer/DrawerEdgeSwipe standalone: pass the same side/size/
+// maxSize/edgeInset the Drawer gets, then seed its translateOffset shared value with closedOffset
+// (not a hand-negated size, which disagrees with the panel wherever the clamp below kicks in), and
+// lay out anything sized to the panel itself (e.g. a full-width carousel page) by effectiveSize.
+//
+// Both sizes are capped at the window's own size along the drawer's axis (see clampToWindow): a
+// fixed `width: 380` fills a 360px-wide phone exactly instead of running off its far edge, and
+// every offset below follows from the capped size, so the closed panel still sits flush against
+// its edge. Capped against the raw window, not the edgeInset-shrunk percentBasis below, so a plain
+// px size stays clear of edgeInset exactly as described next.
+//
 // edgeInset (px, default 0) shrinks the basis a *percentage* height/width/maxHeight/maxWidth
 // resolves against - windowSize - edgeInset instead of the raw windowSize - so `'100%'` fills
 // exactly up to that boundary (e.g. `edgeInset={insets.top}` on a `bottom` sheet's `maxHeight:
@@ -43,10 +54,10 @@ export function useDrawerSize(side: DrawerSide, size: DrawerDimension, maxSize?:
   const windowSize = isVerticalSide(side) ? windowDimensions.height : windowDimensions.width
   const percentBasis = windowSize - edgeInset
 
-  const effectiveSize = resolveDimension(size, percentBasis)
+  const effectiveSize = clampToWindow(resolveDimension(size, percentBasis), windowSize)
   // Guards a misconfigured maxSize smaller than size, which would otherwise produce a negative
   // "hidden" range and invert the rest/closed math below.
-  const maxEffectiveSize = maxSize === undefined ? effectiveSize : Math.max(resolveDimension(maxSize, percentBasis), effectiveSize)
+  const maxEffectiveSize = maxSize === undefined ? effectiveSize : Math.max(clampToWindow(resolveDimension(maxSize, percentBasis), windowSize), effectiveSize)
 
   const closedOffset = getClosedOffset(side, maxEffectiveSize)
   const restOffset = getClosedOffset(side, maxEffectiveSize - effectiveSize)

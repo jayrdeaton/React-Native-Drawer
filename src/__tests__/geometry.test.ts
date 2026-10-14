@@ -1,4 +1,4 @@
-import { getClosedOffset, getExpandProgress, getOpenDirection, isVerticalSide } from '../geometry'
+import { clampToWindow, getClosedOffset, getExpandProgress, getOpenDirection, isVerticalSide } from '../geometry'
 
 describe('isVerticalSide', () => {
   it('returns true for top and bottom', () => {
@@ -27,6 +27,21 @@ describe('getClosedOffset', () => {
 
   it('returns a positive offset for bottom', () => {
     expect(getClosedOffset('bottom', 250)).toBe(250)
+  })
+})
+
+describe('clampToWindow', () => {
+  it('caps a size larger than the window at the window size', () => {
+    expect(clampToWindow(380, 360)).toBe(360)
+  })
+
+  it('leaves a size that already fits untouched', () => {
+    expect(clampToWindow(300, 360)).toBe(300)
+    expect(clampToWindow(360, 360)).toBe(360)
+  })
+
+  it('passes the size through while the window is still unmeasured (0) instead of collapsing it to 0', () => {
+    expect(clampToWindow(380, 0)).toBe(380)
   })
 })
 

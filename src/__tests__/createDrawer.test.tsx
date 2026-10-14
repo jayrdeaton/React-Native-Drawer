@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { BackHandler, View } from 'react-native'
+import { BackHandler, useWindowDimensions, View } from 'react-native'
 import { GestureDetector } from 'react-native-gesture-handler'
 import Animated, { withSpring } from 'react-native-reanimated'
 
@@ -10,6 +10,7 @@ const MockGestureDetector = GestureDetector as unknown as jest.Mock
 const MockAnimatedView = Animated.View as unknown as jest.Mock
 const MockWithSpring = withSpring as unknown as jest.Mock
 const MockAddEventListener = BackHandler.addEventListener as unknown as jest.Mock
+const MockUseWindowDimensions = useWindowDimensions as unknown as jest.Mock
 
 // withSpring's 3rd arg is the finished-callback (passed on both the open and close paths); grabs
 // the most recent call so a test can simulate that spring settling, the trigger for isVisible
@@ -451,6 +452,21 @@ describe('createDrawer', () => {
       // `front`'s entire backdrop+panel stack sits strictly above all of `back`'s: the configured
       // zIndex wins, not declaration order.
       expect(Math.min(...zIndexes.filter((value) => value >= 100))).toBeGreaterThan(Math.max(...zIndexes.filter((value) => value < 100)))
+    })
+  })
+
+  describe('window clamp', () => {
+    // A 360x780 phone, narrower than the 380px drawer each spec creates.
+    beforeEach(() => MockUseWindowDimensions.mockReturnValue({ fontScale: 1, height: 780, scale: 1, width: 360 }))
+    afterEach(() => MockUseWindowDimensions.mockReturnValue({ fontScale: 1, height: 800, scale: 1, width: 400 }))
+
+    it('sizes the panel to the window and seeds the shared translateOffset at the capped closed offset', () => {
+      const { DrawerInstanceProvider } = createDrawer({ width: 380 })
+
+      render(<DrawerInstanceProvider content={<span>content</span>} />)
+
+      expect(drawerPanelStyle().width).toBe(360)
+      expect(drawerPanelStyle().transform).toEqual([{ translateX: -360 }])
     })
   })
 
