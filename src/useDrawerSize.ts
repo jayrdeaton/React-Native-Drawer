@@ -24,19 +24,19 @@ export type DrawerSize = {
 // so all three always agree on where "closed"/"rest"/"expanded" actually are.
 //
 // edgeInset (px, default 0) shrinks the basis a *percentage* height/width/maxHeight/maxWidth
-// resolves against — windowSize - edgeInset instead of the raw windowSize — so `'100%'` fills
+// resolves against - windowSize - edgeInset instead of the raw windowSize - so `'100%'` fills
 // exactly up to that boundary (e.g. `edgeInset={insets.top}` on a `bottom` sheet's `maxHeight:
 // '100%'` stops it just short of the status bar/notch instead of sliding behind it) rather than
 // the literal screen edge. This is the geometry-clamp alternative to padding `content` away from a
 // safe-area inset (see the README's Safe area section): the panel itself never reaches the inset,
-// so there's nothing inside `content` to compensate for — don't combine the two for the same edge,
+// so there's nothing inside `content` to compensate for - don't combine the two for the same edge,
 // or the inset ends up applied twice.
 //
 // A plain pixel number is deliberately left untouched by edgeInset (resolveDimension ignores its
 // windowSize argument entirely for numbers, so passing the shrunk basis to it is a no-op there):
 // a percentage means "fill the available space," which should already account for a known inset,
 // while a literal px value means "this exact size," typically one the caller already computed
-// deliberately (including, if they want, against an inset themselves) — edgeInset silently
+// deliberately (including, if they want, against an inset themselves) - edgeInset silently
 // overriding that would take away the one way to opt back out of it for a specific drawer.
 export function useDrawerSize(side: DrawerSide, size: DrawerDimension, maxSize?: DrawerDimension, edgeInset = 0): DrawerSize {
   const windowDimensions = useWindowDimensions()

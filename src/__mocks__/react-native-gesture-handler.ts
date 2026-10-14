@@ -56,7 +56,7 @@ class PanGestureBuilder {
 
 type TapEvent = Record<string, never>
 
-// A minimal stand-in for react-native-gesture-handler's chainable Gesture.Tap() builder — same
+// A minimal stand-in for react-native-gesture-handler's chainable Gesture.Tap() builder - same
 // __getHandlers() escape hatch as PanGestureBuilder above, for specs that need to invoke onEnd
 // directly (e.g. Drawer's own backdrop-tap-to-close) rather than driving a real native gesture.
 class TapGestureBuilder {

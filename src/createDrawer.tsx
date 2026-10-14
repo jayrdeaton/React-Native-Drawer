@@ -9,14 +9,14 @@ import { useDrawerSize } from './useDrawerSize'
 
 export type DrawerActions = {
   close: () => void
-  // 0 anywhere at or before `height`/`width` (closed, or resting at its default open size —
+  // 0 anywhere at or before `height`/`width` (closed, or resting at its default open size -
   // nothing to indicate, since the panel isn't showing any more than that), 1 once a drag has
   // pulled it all the way open to `maxHeight`/`maxWidth`, smoothly interpolating in between as the
   // handle is dragged or the spring animates. For content that only needs to react once the panel
-  // is genuinely at its full extent — e.g. fading in a top safe-area inset that's wasted space while
+  // is genuinely at its full extent - e.g. fading in a top safe-area inset that's wasted space while
   // merely at rest, but genuinely needed once expansion reaches the screen edge/notch. This is the
   // content-padding approach to a safe-area inset; `edgeInset` (see CreateDrawerOptions) is the
-  // alternative geometry-clamp approach, which keeps the panel itself short of the inset instead —
+  // alternative geometry-clamp approach, which keeps the panel itself short of the inset instead -
   // don't combine both for the same edge on the same drawer, or the inset gets applied twice. Always
   // a flat 1 while open (matching "already at full extent") when there's no maxHeight/maxWidth
   // configured.
@@ -99,7 +99,7 @@ const noop = () => {}
 // settings drawer (say) stay fully independent without a stringly-typed id to keep them apart.
 export const createDrawer = ({ backdropOpacity: factoryBackdropOpacity, blockingBackdrop: factoryBlockingBackdrop, blur: factoryBlur, closeOnBackPress: factoryCloseOnBackPress, contentSize: factoryContentSize, dismissible: factoryDismissible, edgeInset = 0, height = 300, maxHeight, maxWidth, showHandle: factoryShowHandle, side = 'left', width = 300, zIndex: factoryZIndex }: CreateDrawerOptions = {}): CreateDrawerResult => {
   // Static, non-reactive stand-in for the default context value only (before any real Provider has
-  // mounted) — same reasoning as the plain `noop` functions alongside it.
+  // mounted) - same reasoning as the plain `noop` functions alongside it.
   const defaultExpandProgress = { value: 1 } as SharedValue<number>
   const DrawerActionsContext = createContext<DrawerActions>({ close: noop, expandProgress: defaultExpandProgress, isOpen: false, isVisible: false, open: noop })
   const vertical = isVerticalSide(side)
@@ -129,7 +129,7 @@ export const createDrawer = ({ backdropOpacity: factoryBackdropOpacity, blocking
 
     // Percentages can't resolve outside a component (no window dimensions to hand), so unlike
     // Drawer/DrawerEdgeSwipe (which each resolve their own copy internally), this is the one place
-    // createDrawer needs it directly — both for translateOffset's own initial seed, and restOffset
+    // createDrawer needs it directly - both for translateOffset's own initial seed, and restOffset
     // for expandProgress below. contentSize never gets a maxSize (mirrors Drawer's own
     // contentSize-has-no-expand-ceiling rule), so expandProgress is always a flat 1 there too.
     const { closedOffset, restOffset } = useDrawerSize(side, effectiveSize, contentSize ? undefined : maxSize, edgeInset)
@@ -138,7 +138,7 @@ export const createDrawer = ({ backdropOpacity: factoryBackdropOpacity, blocking
     // (kept in sync, tested there directly) for the same formula explained in more depth. Inlined
     // rather than calling that shared helper: react-native-worklets (Reanimated 4+) only forwards a
     // worklet's *relative* imports for files matching an explicit allowlist, which doesn't include
-    // published node_modules packages by default — importing and calling it here would fail at
+    // published node_modules packages by default - importing and calling it here would fail at
     // runtime as an unrecognized cross-module "remote function" call from the UI thread. currentD/
     // restD are in the same closeDirection-normalized "D-space" Drawer.tsx's own gesture math uses,
     // so this stays agnostic of `side`'s sign convention.

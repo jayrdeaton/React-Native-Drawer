@@ -20,7 +20,7 @@ export type DrawerEdgeSwipeProps = {
   enabled?: boolean
   height?: DrawerDimension
   // Shrink the strip's span along its long axis, to clear chrome (a header, a tab bar, ...) that
-  // would otherwise have its own touches stolen by this gesture — only the pair perpendicular to
+  // would otherwise have its own touches stolen by this gesture - only the pair perpendicular to
   // `side`'s own strip thickness applies: insetTop/insetBottom for a left/right drawer's vertical
   // strip, insetLeft/insetRight for a top/bottom drawer's horizontal one. The other pair is
   // ignored. All default to 0 (the strip's prior, full-length behavior).
@@ -29,7 +29,7 @@ export type DrawerEdgeSwipeProps = {
   insetRight?: number
   insetTop?: number
   // Mirrors Drawer's own maxHeight: when set, an edge swipe still only opens to `height` (the rest
-  // size), not all the way to this ceiling — matching Drawer's tap-to-open behavior, which also
+  // size), not all the way to this ceiling - matching Drawer's tap-to-open behavior, which also
   // lands at rest. Reaching past rest, up to maxHeight, is only ever done via Drawer's own handle.
   maxHeight?: DrawerDimension
   // The maxWidth mirror of maxHeight, for `left`/`right` drawers.
@@ -61,7 +61,7 @@ export const DrawerEdgeSwipe = ({ edgeInset = 0, enabled = true, height = 300, i
       'worklet'
       const translation = vertical ? event.translationY : event.translationX
       // react-hooks/immutability flags this because translateOffset is a prop, but mutating a
-      // Reanimated SharedValue's .value is the correct way to drive it — not a prop reassignment.
+      // Reanimated SharedValue's .value is the correct way to drive it - not a prop reassignment.
       // eslint-disable-next-line react-hooks/immutability
       translateOffset.value = Math.min(clampMax, Math.max(clampMin, closedOffset + translation))
     })
@@ -85,7 +85,7 @@ export const DrawerEdgeSwipe = ({ edgeInset = 0, enabled = true, height = 300, i
   return (
     <GestureDetector gesture={gesture}>
       {/* Same web-only affordance Drawer.tsx's own handle strip gives its drag grip (see its
-          webCursorStyle) — without it, nothing on screen hints that this edge is draggable at
+          webCursorStyle) - without it, nothing on screen hints that this edge is draggable at
           all on a platform with a mouse cursor to change in the first place.
 
           pointerEvents here (not just gesture.enabled(enabled) above) matters on web specifically:
@@ -93,7 +93,7 @@ export const DrawerEdgeSwipe = ({ edgeInset = 0, enabled = true, height = 300, i
           doesn't stop this View's underlying DOM node from being hit-tested. Without this, a caller
           passing enabled={false} to shed the edge-swipe-to-open behavior (e.g. because their own
           screen never uses it) still ends up with this zone as an invisible, unconditionally opaque
-          strip along the edge — silently swallowing presses meant for anything else placed there,
+          strip along the edge - silently swallowing presses meant for anything else placed there,
           even though the gesture it exists for no longer does anything. 'none' when disabled lets
           that click/tap fall straight through to whatever's actually underneath. */}
       <View style={[...edgeStyle, webCursorStyle, enabled ? styles.interactive : styles.nonInteractive]} />

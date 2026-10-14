@@ -56,7 +56,7 @@ const backdropTintCall = () => [...MockAnimatedView.mock.calls].reverse().find((
 const backdropPointerEvents = () => backdropCall()?.pointerEvents
 const backdropOpacityValue = () => flattenStyle(backdropTintCall()?.style).opacity
 // The panel's own zIndex is always exactly one more than the backdrop's (Drawer.tsx: zIndex + 1),
-// regardless of the configured base zIndex — not positional, since backdropTint and the
+// regardless of the configured base zIndex - not positional, since backdropTint and the
 // collapsable backdrop-tap view now render as additional Animated.View calls ahead of the panel.
 const drawerPanelStyle = (zIndex = 50) => flattenStyle(MockAnimatedView.mock.calls.find((call) => flattenStyle(call[0].style).zIndex === zIndex + 1)?.[0].style)
 const pillRendered = () => MockView.mock.calls.some((call) => flattenStyle(call[0].style).borderRadius === 3)
@@ -324,7 +324,7 @@ describe('createDrawer', () => {
       </DrawerInstanceProvider>
     )
     fireEvent.click(screen.getByText('open'))
-    // 'box-none', not 'auto' — see Drawer.test.tsx's blockingBackdrop describe block for why.
+    // 'box-none', not 'auto' - see Drawer.test.tsx's blockingBackdrop describe block for why.
     expect(backdropPointerEvents()).toBe('box-none')
   })
 

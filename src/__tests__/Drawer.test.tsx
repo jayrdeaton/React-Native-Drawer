@@ -34,8 +34,8 @@ type MockedGesture = { __getHandlers: () => { enabled: boolean; onEnd?: (event: 
 type MockedTapGesture = { __getHandlers: () => { enabled: boolean; onEnd?: (event: Record<string, never>, success: boolean) => void } }
 
 // Drawer always renders its backdrop's own Gesture.Tap() first (the very first GestureDetector in
-// the tree — see the zIndex describe block's own comment on render order) and the drag handle's
-// Gesture.Pan() last, if it renders at all (dismissible) — same reasoning as lastGesture below, just
+// the tree - see the zIndex describe block's own comment on render order) and the drag handle's
+// Gesture.Pan() last, if it renders at all (dismissible) - same reasoning as lastGesture below, just
 // anchored to the opposite end of the call list.
 const firstGesture = () => (MockGestureDetector.mock.calls[0][0].gesture as MockedTapGesture).__getHandlers()
 const lastGesture = () => (MockGestureDetector.mock.calls[MockGestureDetector.mock.calls.length - 1][0].gesture as MockedGesture).__getHandlers()
@@ -45,19 +45,19 @@ const sharedValue = (initial: number) => ({ value: initial }) as SharedValue<num
 const flattenStyle = (style: unknown): Record<string, unknown> => (Array.isArray(style) ? style : [style]).reduce((acc: Record<string, unknown>, s) => ({ ...acc, ...(s as Record<string, unknown>) }), {})
 
 const drawerPanelStyle = (zIndex = 50) => flattenStyle(MockAnimatedView.mock.calls.find((call) => flattenStyle(call[0].style).zIndex === zIndex + 1)?.[0].style)
-// The backdrop's own outer wrapper — carries zIndex (in style) and pointerEvents (as the prop, not
-// inside style — see Drawer.tsx's own comment on why: inline box-none breaks on react-native-web), but no longer opacity, which
+// The backdrop's own outer wrapper - carries zIndex (in style) and pointerEvents (as the prop, not
+// inside style - see Drawer.tsx's own comment on why: inline box-none breaks on react-native-web), but no longer opacity, which
 // moved to its child backdropTint (see backdropTintCall below) once the dimming layer and the
 // tap-to-close hit target split into separate views.
 const backdropCall = () => MockAnimatedView.mock.calls.find((call) => flattenStyle(call[0].style).zIndex === 50)?.[0]
-// The backdrop's dimming child — identified by its distinctive backgroundColor (styles.backdropTint)
+// The backdrop's dimming child - identified by its distinctive backgroundColor (styles.backdropTint)
 // rather than zIndex, which it doesn't set at all (it inherits its stacking from the outer wrapper).
 const backdropTintCall = () => MockAnimatedView.mock.calls.find((call) => flattenStyle(call[0].style).backgroundColor === '#000')?.[0]
 // The handle strip is an Animated.View, identified by its distinctive alignItems/justifyContent
 // styling (styles.handleStrip) rather than position or zIndex, both of which vary by test.
 const handleStripStyle = () => flattenStyle(MockAnimatedView.mock.calls.find((call) => flattenStyle(call[0].style).justifyContent === 'center')?.[0].style)
 // panelShadow's own Animated.View, identified by the one style property nothing else in Drawer
-// ever sets — a boxShadow array — rather than position/zIndex, both of which vary by test.
+// ever sets - a boxShadow array - rather than position/zIndex, both of which vary by test.
 const panelShadowStyle = () => flattenStyle(MockAnimatedView.mock.calls.find((call) => Array.isArray(flattenStyle(call[0].style).boxShadow))?.[0]?.style)
 
 describe('Drawer', () => {
@@ -68,7 +68,7 @@ describe('Drawer', () => {
     renderDrawer(<Drawer onClose={onClose} open />)
 
     // success=true: a genuine completed tap, as opposed to one that got interrupted or dragged past
-    // the gesture's own distance/duration bounds (see Drawer.tsx's backdropTapGesture — only a
+    // the gesture's own distance/duration bounds (see Drawer.tsx's backdropTapGesture - only a
     // successful tap actually calls onClose).
     firstGesture().onEnd?.({}, true)
 
@@ -358,7 +358,7 @@ describe('Drawer', () => {
 
     // Regression: a 0x0 window (e.g. web, briefly, before the real size is measured on mount) used
     // to resolve a percentage size to 0, and 0 as the backdrop opacity denominator produced NaN
-    // (0/0) rather than a clean 0 — react-native-web throws on an NaN style value.
+    // (0/0) rather than a clean 0 - react-native-web throws on an NaN style value.
     it('never produces a NaN backdrop opacity when the window is briefly 0x0', () => {
       MockUseWindowDimensions.mockReturnValueOnce({ fontScale: 1, height: 0, scale: 1, width: 0 })
 
@@ -567,7 +567,7 @@ describe('Drawer', () => {
         </Drawer>
       )
 
-      // 1, not 0: the backdrop's own Gesture.Tap() still renders — dismissible only controls the
+      // 1, not 0: the backdrop's own Gesture.Tap() still renders - dismissible only controls the
       // drag handle.
       expect(MockGestureDetector).toHaveBeenCalledTimes(1)
     })
@@ -640,8 +640,8 @@ describe('Drawer', () => {
     })
 
     // Anchored via [oppositeSide]: -28 (see Drawer.tsx's handleStripEdgeStyle comment): the box's
-    // far/backdrop-facing edge sits exactly 28px past the panel's own edge — the same spot the old
-    // `[side]: '100%'` positioning landed it at — rather than flush *inside* the panel's own box,
+    // far/backdrop-facing edge sits exactly 28px past the panel's own edge - the same spot the old
+    // `[side]: '100%'` positioning landed it at - rather than flush *inside* the panel's own box,
     // eating into its content area.
     it('positions the handle outside the panel, past its content-facing edge, for every side', () => {
       const cases: Array<[side: 'bottom' | 'left' | 'right' | 'top', farEdge: string]> = [
@@ -666,7 +666,7 @@ describe('Drawer', () => {
     })
 
     // The strip's own visual size is only 28px thick, but its actual box (and so its grabbable area)
-    // is 48px — HANDLE_STRIP_TOTAL_THICKNESS — with the extra 20px (HANDLE_HIT_SLOP) landing on the
+    // is 48px - HANDLE_STRIP_TOTAL_THICKNESS - with the extra 20px (HANDLE_HIT_SLOP) landing on the
     // panel-facing side via padding, not on the backdrop-facing side, where it could swallow taps
     // meant for the backdrop's tap-to-dismiss.
     it('extends the grabbable box into the panel via padding on the panel-facing side, not the strip size', () => {
@@ -696,8 +696,8 @@ describe('Drawer', () => {
 
   describe('handle visibility', () => {
     // The handle floats outside the panel's own box (see the "positions the handle outside the
-    // panel" test above), so the panel's own close translation — calibrated to hide exactly
-    // maxEffectiveSize of panel — doesn't carry the handle's extra thickness off-screen with it.
+    // panel" test above), so the panel's own close translation - calibrated to hide exactly
+    // maxEffectiveSize of panel - doesn't carry the handle's extra thickness off-screen with it.
     // Regression: without an explicit opacity cutoff, a closed drawer's handle ends up sitting
     // right at the screen edge, visibly stuck "open," forever.
     const handleOpacity = () => handleStripStyle().opacity
@@ -801,7 +801,7 @@ describe('Drawer', () => {
     })
 
     // Regression: this is the whole reason panelShadow exists as an animated fade rather than a
-    // plain static style — see Drawer.tsx's own doc comment on the prop for the bug this replaces.
+    // plain static style - see Drawer.tsx's own doc comment on the prop for the bug this replaces.
     it('falls where the panel opens toward, not away from it, for every side', () => {
       renderDrawer(
         <Drawer onClose={jest.fn()} open panelShadow side='left' translateOffset={sharedValue(0)} width={300}>
@@ -837,7 +837,7 @@ describe('Drawer', () => {
 
     // The exact bug report this whole feature fixes: a plain static shadow bleeds its blurRadius
     // back onto the visible screen even while fully closed, since a closed panel sits exactly
-    // flush against the screen edge (translateOffset === closedOffset) — opacity has to reach
+    // flush against the screen edge (translateOffset === closedOffset) - opacity has to reach
     // all the way to 0 right at that point, not just "mostly faded."
     it('is fully invisible once the panel is fully closed', () => {
       renderDrawer(
@@ -874,7 +874,7 @@ describe('Drawer', () => {
 
   describe('blockingBackdrop', () => {
     // 'box-none', not 'auto': this wrapper is just a positioning shell around the dimming tint and
-    // the actual tap-catching view (see Drawer.tsx's own comment on backdropInteractionStyle) — an
+    // the actual tap-catching view (see Drawer.tsx's own comment on backdropInteractionStyle) - an
     // explicit zIndex here previously outranked the panel for every click on screen, even directly
     // on the panel's own content, since panelClip (wrapping the panel) never sets its own zIndex.
     // 'box-none' keeps this wrapper itself out of hit-testing while its child (the actual tap
@@ -903,7 +903,7 @@ describe('Drawer', () => {
   describe('handle strip pointerEvents', () => {
     // handleVisibilityStyle's own opacity already fades the strip out once closed, but opacity
     // alone doesn't stop hit-testing on web/Android (see Drawer.tsx's own comment on the
-    // iOS/opacity-0 asymmetry) — pointerEvents has to make that explicit itself, same as the
+    // iOS/opacity-0 asymmetry) - pointerEvents has to make that explicit itself, same as the
     // backdrop's own tap-catcher does for backdropTapGesture's identical open-gated .enabled().
     it('intercepts touches while open, matching handleGesture being enabled', () => {
       renderDrawer(
@@ -980,7 +980,7 @@ describe('Drawer', () => {
       // The strip itself, and the gesture attached to it, is unaffected by showHandle; only
       // `dismissible` controls whether either renders at all (see the dismissible tests above).
       // 2, not 1: the backdrop's own Gesture.Tap() always renders too (see the dismissible tests'
-      // own comment on render order) — the handle's Gesture.Pan() is the second.
+      // own comment on render order) - the handle's Gesture.Pan() is the second.
       expect(MockGestureDetector).toHaveBeenCalledTimes(2)
     })
   })

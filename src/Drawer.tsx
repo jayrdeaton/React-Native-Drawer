@@ -31,18 +31,18 @@ const useBlurFallback = (override?: boolean) => override ?? false
 export type DrawerPanelShadow = {
   blurRadius?: number
   color?: string
-  // Magnitude only, in px — always positive, regardless of `side`. The actual signed offset
+  // Magnitude only, in px - always positive, regardless of `side`. The actual signed offset
   // (which way the shadow falls) is derived from `side` internally, the same way DrawerEdgeSwipe
   // derives its own opening direction from it: a consumer supplying the wrong sign for a
-  // right/bottom-anchored panel (an easy mistake — see this prop's own top-level doc comment) is
+  // right/bottom-anchored panel (an easy mistake - see this prop's own top-level doc comment) is
   // exactly the bug this exists to make impossible.
   distance?: number
-  // Android's own native shadow system, alongside (not instead of) the boxShadow above — the two
+  // Android's own native shadow system, alongside (not instead of) the boxShadow above - the two
   // aren't redundant: boxShadow is what actually paints on iOS/web, and while the New
   // Architecture's Fabric renderer does translate boxShadow to a real shadow on Android too,
   // elevation is the longer-established, better-tested path there and worth keeping as a belt-
   // and-suspenders fallback rather than trusting boxShadow alone on every Android/RN version this
-  // could run on. Defaults to blurRadius itself — the same plain magnitude-to-elevation
+  // could run on. Defaults to blurRadius itself - the same plain magnitude-to-elevation
   // correspondence a consumer would otherwise hand-roll (this mirrors what this repo's own past
   // panelContent styles, now replaced by this prop, always did: elevation set to the same number
   // as blurRadius). Rendered on the SAME view panelShadowVisibilityStyle animates the opacity of,
@@ -72,11 +72,11 @@ export type DrawerProps = {
   // content-facing edge) rather than claiming space inside it.
   dismissible?: boolean
   // Shrinks the basis a *percentage* height/width/maxHeight/maxWidth resolves against, so `'100%'`
-  // fills exactly up to `edgeInset` px short of the screen's edge instead of reaching it — e.g.
+  // fills exactly up to `edgeInset` px short of the screen's edge instead of reaching it - e.g.
   // `edgeInset={insets.top}` on a `bottom` sheet with `maxHeight: '100%'` stops it just short of the
   // status bar/notch, rather than sliding behind it. The geometry-clamp alternative to padding
   // `content` away from a safe-area inset (see the README's Safe area section): the panel itself
-  // never reaches the inset, so there's nothing inside `content` to compensate for — don't combine
+  // never reaches the inset, so there's nothing inside `content` to compensate for - don't combine
   // the two for the same edge, or the inset ends up applied twice. Has no effect on a plain px
   // number: that's taken as the exact size you asked for, same as always, letting you opt back out
   // of the inset for a specific drawer by passing a literal value instead of a percentage. Defaults
@@ -109,13 +109,13 @@ export type DrawerProps = {
   // autofocusing a field inside `content` only once it's actually on screen.
   onOpened?: () => void
   open: boolean
-  // Off by default (this is a real, paid render — an extra always-mounted Animated.View — not
+  // Off by default (this is a real, paid render - an extra always-mounted Animated.View - not
   // free to opt every consumer into). true uses sensible defaults (2px distance, 8px blur, 30%
   // black); pass a DrawerPanelShadow to override any of those. Opacity fades in/out together with
   // the handle strip's own pill (both driven by the same visibleSize), rather than being either
   // permanently on or permanently off: a plain static shadow on the panel bleeds past its own
   // blurRadius even while `open` is false and the panel is translated fully off-screen, since a
-  // closed panel sits exactly flush against the screen edge (translateOffset === closedOffset) —
+  // closed panel sits exactly flush against the screen edge (translateOffset === closedOffset) -
   // shadow rendering doesn't know or care that its box is off-screen, so a few px of blur reads as
   // a permanent, unwanted line along that edge, closed or not.
   panelShadow?: boolean | DrawerPanelShadow
@@ -150,12 +150,12 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   const panelShadowElevation = resolvedPanelShadow?.elevation ?? panelShadowBlurRadius
   // Same sign convention as the "opens toward" direction below (openDirection: 1 for left/top, -1
   // for right/bottom): a panel's shadow always falls AWAY from the panel, onto whatever content
-  // sits on its open side — which is exactly the side its own drag-to-open motion points toward.
+  // sits on its open side - which is exactly the side its own drag-to-open motion points toward.
   const panelShadowMagnitude = panelShadowDistance * openDirection
   const panelShadowStyle: ViewStyle = { boxShadow: [{ offsetX: vertical ? 0 : panelShadowMagnitude, offsetY: vertical ? panelShadowMagnitude : 0, blurRadius: panelShadowBlurRadius, color: panelShadowColor }], elevation: panelShadowElevation }
 
   const [measuredSize, setMeasuredSize] = useState<number | null>(null)
-  // Tracks the last value actually committed to measuredSize, rounded — see handleLayout below for
+  // Tracks the last value actually committed to measuredSize, rounded - see handleLayout below for
   // why the comparison has to happen against this rather than just re-deriving it from measuredSize
   // itself on every call.
   const lastMeasuredRef = useRef<number | null>(null)
@@ -178,7 +178,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
 
   useEffect(() => {
     if (open) {
-      // Rests at restOffset (== 0, fully expanded, when there's no maxHeight/maxWidth — identical
+      // Rests at restOffset (== 0, fully expanded, when there's no maxHeight/maxWidth - identical
       // to before), not always 0: an expandable sheet opens to its rest size, not its max size.
       translateOffset.value = withSpring(restOffset, SPRING, (finished) => {
         if (finished && onOpened) runOnJS(onOpened)()
@@ -202,7 +202,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
 
   const drawerStyle = useAnimatedStyle(() => ({ transform: [vertical ? { translateY: translateOffset.value } : { translateX: translateOffset.value }] }))
   // Denominator is maxEffectiveSize, not effectiveSize/rest: dims proportionally to how much of the
-  // panel's full (possibly-expanded) size is currently covering the screen, not just its rest size —
+  // panel's full (possibly-expanded) size is currently covering the screen, not just its rest size -
   // otherwise a still-collapsing expandable sheet would hit full backdropOpacity well before it's
   // actually fully open. Reduces to today's exact behavior when there's no maxHeight/maxWidth, since
   // maxEffectiveSize === effectiveSize then.
@@ -213,14 +213,14 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   const backdropStyle = useAnimatedStyle(() => ({ opacity: maxEffectiveSize > 0 ? (1 - Math.abs(translateOffset.value) / maxEffectiveSize) * backdropOpacity : 0 }))
   const animatedSizeStyle = useAnimatedStyle(() => (vertical ? { height: animatedSize.value } : { width: animatedSize.value }))
   // 'box-none' (not 'auto'): this wrapper is just a positioning shell around the dimming tint and
-  // the actual tap-catching view below — on react-native-web, an ancestor's own explicit zIndex
+  // the actual tap-catching view below - on react-native-web, an ancestor's own explicit zIndex
   // wins hit-testing over a plain-DOM-order sibling's lower-tier descendants (the panel lives inside
-  // panelClip, which now carries the panel's tier itself — see its comment), so this wrapper being 'auto' made
+  // panelClip, which now carries the panel's tier itself - see its comment), so this wrapper being 'auto' made
   // its own full-screen box outrank the panel for every click anywhere on screen, even where the
-  // panel visually covers it — a tap on real panel content (e.g. a settings toggle) would land on
+  // panel visually covers it - a tap on real panel content (e.g. a settings toggle) would land on
   // this inert wrapper instead and silently do nothing. 'box-none' keeps the wrapper itself out of
   // hit-testing while still letting its own children (the tap-catcher below) receive touches within
-  // their own (now-shrunk, see backdropTapAreaStyle) bounds — exactly the "auto" behavior this was
+  // their own (now-shrunk, see backdropTapAreaStyle) bounds - exactly the "auto" behavior this was
   // meant to have, minus the container falsely claiming space it doesn't actually own.
   //
   //
@@ -233,12 +233,12 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   const backdropPointerEvents = open && blockingBackdrop ? 'box-none' : 'none'
   // react-native-gesture-handler's web backend resolves a Gesture.Tap's hit region from this
   // view's own measured bounds, not from real DOM occlusion/z-index the way native UIKit/Android
-  // hit-testing does — so on web, a tap landing anywhere on the (opaque, higher-zIndex) panel on
+  // hit-testing does - so on web, a tap landing anywhere on the (opaque, higher-zIndex) panel on
   // top of this backdrop was still satisfying the backdrop's OWN Tap gesture underneath it,
   // closing the drawer out from under a perfectly normal tap on its content (e.g. a toggle inside
   // a settings panel). Native is unaffected (its real view hierarchy already occludes correctly),
   // but shrinking this view's own bounds to exclude the panel's footprint is correct on every
-  // platform regardless — that region was always hidden behind the opaque panel anyway, so this
+  // platform regardless - that region was always hidden behind the opaque panel anyway, so this
   // changes nothing observable, it just stops the gesture from being reachable there at all.
   const backdropTapAreaStyle: ViewStyle = side === 'left' ? { left: maxEffectiveSize } : side === 'right' ? { right: maxEffectiveSize } : side === 'top' ? { top: maxEffectiveSize } : { bottom: maxEffectiveSize }
 
@@ -250,14 +250,14 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   // Rounded (not the raw sub-pixel float layout reports) and short-circuited against the last value
   // actually committed: an animated ancestor (animatedSizeStyle below, mid-withTiming) can cause
   // Yoga to re-measure this supposedly content-unconstrained wrapper on every frame it's still
-  // moving, and floating-point noise between passes (e.g. 283.3333740234375 vs 283.33331298828125 —
+  // moving, and floating-point noise between passes (e.g. 283.3333740234375 vs 283.33331298828125 -
   // the same logical height, off by ~1/16000th of a pixel) is "different" by strict equality. Left
   // unguarded, that noise commits a "new" measuredSize every frame, which restarts the very
-  // withTiming animation that's causing the re-measurement in the first place — a self-sustaining
+  // withTiming animation that's causing the re-measurement in the first place - a self-sustaining
   // loop that never lets the height settle, seen as a stutter rather than a single smooth resize.
   // Comparing against a ref (not measuredSize itself) matters here: measuredSize is the state that's
   // deliberately being skipped on a no-op call, so re-deriving the comparison from it would still
-  // see the same (unchanged) value next time regardless — the ref is what actually remembers what
+  // see the same (unchanged) value next time regardless - the ref is what actually remembers what
   // was last committed.
   const handleLayout = (event: LayoutChangeEvent) => {
     const measured = Math.round(vertical ? event.nativeEvent.layout.height : event.nativeEvent.layout.width)
@@ -300,10 +300,10 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
     )
   // contentSize's measuring wrapper above is deliberately given no style of its own (see the
   // comment above `fillStyle`): it must report ITS OWN natural size, which only works if `children`
-  // itself has an intrinsic height Yoga can compute directly from its subtree — e.g. plain
+  // itself has an intrinsic height Yoga can compute directly from its subtree - e.g. plain
   // Views/Text/FABs, including a `flexWrap: 'wrap'` row like FabRow. A `ScrollView` breaks this: on
-  // native, ScrollView's outer box does NOT size itself to its content the way a plain View does —
-  // it needs a bounded height from an ANCESTOR instead (see ScrollView's own docs) — so measuring
+  // native, ScrollView's outer box does NOT size itself to its content the way a plain View does -
+  // it needs a bounded height from an ANCESTOR instead (see ScrollView's own docs) - so measuring
   // one via onLayout here reports some small, real-but-wrong box height (whatever Yoga happens to
   // resolve it to absent an explicit bound) rather than the content's true extent, and clips
   // anything beyond that. contentSize's `children` must render its own natural-height content
@@ -326,17 +326,17 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   // the panel slides back toward), gesture-matched to `side` the same way DrawerEdgeSwipe is. With no
   // maxHeight/maxWidth it's a simple two-point toggle, same as before: starts from the OPEN/rest
   // position (restOffset, which equals 0 in that case) and commits toward `closedOffset` or springs
-  // back. With one, it's three points along the same axis — closedOffset, restOffset, and fully
-  // expanded (0) — and the drag can commit toward whichever of those neighbors it's currently
+  // back. With one, it's three points along the same axis - closedOffset, restOffset, and fully
+  // expanded (0) - and the drag can commit toward whichever of those neighbors it's currently
   // nearest, in either direction. Deliberately its own hit area rather than the whole panel, so it
   // can't steal touches from arbitrary interactive content inside `children`.
   const clampMin = Math.min(0, closedOffset)
   const clampMax = Math.max(0, closedOffset)
 
   // A single signed offset (e.g. closeDirection * 10) only arms the gesture for drags past that
-  // threshold in ONE direction — exactly what the plain close-only case wants (dragging the "wrong"
+  // threshold in ONE direction - exactly what the plain close-only case wants (dragging the "wrong"
   // way, further into "already open," should fall through rather than eat the touch), but it means a
-  // drag toward expanding — the opposite direction — never activates the gesture at all. With no
+  // drag toward expanding - the opposite direction - never activates the gesture at all. With no
   // maxHeight/maxWidth (restOffset always 0) that's fine, since there's nothing to expand into: keep
   // the single-direction threshold, unchanged from before. Once expansion is possible, the gesture
   // needs to recognize BOTH directions, so it switches to a symmetric range instead.
@@ -380,7 +380,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
       const velocity = vertical ? event.velocityY : event.velocityX
       // Everything below works in "closing-direction" units (closeDirection-normalized), where 0 is
       // always fully expanded and larger is always closer to closed, regardless of `side`'s sign
-      // convention — the same trick the old single-segment formula used, just reused per segment.
+      // convention - the same trick the old single-segment formula used, just reused per segment.
       const velocityD = velocity * closeDirection
       const currentD = translateOffset.value * closeDirection
       const restD = restOffset * closeDirection // 0 when there's no maxHeight/maxWidth
@@ -391,7 +391,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
         // progress 1): traveled = restD - currentD, since currentD counts down from restD to 0 as
         // the drag moves toward expanding. Same 1/3-traveled threshold as the rest/closed segment
         // below, just scoped to this segment's own length and direction; a fast fling toward
-        // expanding (velocityD very negative — the opposite sign from the closing fling below) also
+        // expanding (velocityD very negative - the opposite sign from the closing fling below) also
         // commits, regardless of distance covered.
         const progress = restD > 0 ? (restD - currentD) / restD : 1
         target = progress > 1 / 3 || velocityD < -VELOCITY_THRESHOLD ? 0 : restOffset
@@ -419,26 +419,26 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   // minimum touch target) without the pill itself growing or the strip visually eating panel space.
   // Deliberately not done via Gesture.Pan().hitSlop(): react-native-gesture-handler's web backend
   // binds its pointer listeners directly to the strip's own DOM node, so a pointer genuinely outside
-  // that node's rendered box never reaches the handler there at all — hitSlop only helps on native,
+  // that node's rendered box never reaches the handler there at all - hitSlop only helps on native,
   // where the OS extends the touch region a different way. Growing the real box, below, works
   // everywhere a pointer/touch can actually land.
   const HANDLE_HIT_SLOP = 20
   const HANDLE_STRIP_TOTAL_THICKNESS = HANDLE_STRIP_THICKNESS + HANDLE_HIT_SLOP
   const handleStripSizeStyle: ViewStyle = vertical ? { height: HANDLE_STRIP_TOTAL_THICKNESS, left: 0, right: 0 } : { bottom: 0, top: 0, width: HANDLE_STRIP_TOTAL_THICKNESS }
   // Sits OUTSIDE the panel's own box rather than claiming interior visual space. Anchored from the
-  // FAR (backdrop-facing) edge — the opposite side from `side` — since that edge's distance from the
+  // FAR (backdrop-facing) edge - the opposite side from `side` - since that edge's distance from the
   // panel is the one constant here (always exactly HANDLE_STRIP_THICKNESS past the panel, same as
   // before this box grew): [oppositeSide]: -HANDLE_STRIP_THICKNESS fixes it there, and the box's full
   // HANDLE_STRIP_TOTAL_THICKNESS width/height extends back from that fixed point, covering the
   // original strip's footprint plus HANDLE_HIT_SLOP more, into the panel. `right`/`left`/`top`/
-  // `bottom` values are always relative to the parent's actual current edge, so — like the old
-  // percentage-based version — this still tracks correctly while contentSize is animating the
+  // `bottom` values are always relative to the parent's actual current edge, so - like the old
+  // percentage-based version - this still tracks correctly while contentSize is animating the
   // panel's size. Requires drawerOuterStyle to stay unclipped (see its comment above) or this would
   // be cut off.
   const oppositeSide = side === 'left' ? 'right' : side === 'right' ? 'left' : side === 'top' ? 'bottom' : 'top'
   const handleStripEdgeStyle: ViewStyle = { [oppositeSide]: -HANDLE_STRIP_THICKNESS }
   // React Native sizes width/height as the outer box (unlike default web CSS box-sizing), so this
-  // padding — on the panel-facing side only — shrinks just the flex CONTENT area back down to the
+  // padding - on the panel-facing side only - shrinks just the flex CONTENT area back down to the
   // original 28px, without changing the box's own outer bounds. alignItems/justifyContent below then
   // center the pill within that content area, landing it at exactly its pre-hit-slop spot: only the
   // invisible margin around it grew.
@@ -453,7 +453,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   // panel's own content, it isn't carried off-screen by the panel's close translation: that
   // translation is only ever calibrated to hide the panel's own maxEffectiveSize, not the strip's
   // extra thickness beyond it. Once less than the strip's own thickness of panel remains visible,
-  // there's no panel edge left for it to be flush against, so it's hidden — otherwise it wells up
+  // there's no panel edge left for it to be flush against, so it's hidden - otherwise it wells up
   // sitting right at the screen edge looking like the drawer is still (a little) open, even at rest
   // fully closed. visibleSize mirrors the gesture's own D-space trick above: 0 at fully closed,
   // maxEffectiveSize at fully expanded, regardless of `side`'s sign convention.
@@ -466,7 +466,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   // the panel's true edge) rather than snapping like the handle strip's own binary visibleSize
   // check above: by the time visibleSize passes that point, the panel edge itself is already
   // further onto the screen than the shadow ever bled, so there's no longer a "fake" shadow to
-  // distinguish from a real one — full opacity is correct from there on. Always computed (hooks
+  // distinguish from a real one - full opacity is correct from there on. Always computed (hooks
   // can't be called conditionally) even when panelShadow is falsy; harmless, since the style is
   // never applied to anything in that case.
   const panelShadowFadeDistance = panelShadowBlurRadius + panelShadowDistance
@@ -482,42 +482,42 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
         backdropStyle's animated opacity, separate from the tap-catching view below and from the
         OUTER container above (which must stay paint-free, not just visually transparent at
         opacity 0): on iOS, a view at opacity 0 (e.g. backdropOpacity={0}, an intentional no-dim
-        backdrop — see controlGroups.tsx) is excluded from hit-testing entirely by UIKit,
+        backdrop - see controlGroups.tsx) is excluded from hit-testing entirely by UIKit,
         regardless of pointerEvents. That's fine for a purely decorative tint, but it would
-        silently make the whole backdrop untouchable too if the SAME view carried both — and if
+        silently make the whole backdrop untouchable too if the SAME view carried both - and if
         the outer container carried the background color instead, it would paint solid black at
         full opacity at all times (no animated opacity of its own), open or not. */}
         <Animated.View style={[styles.backdropTint, backdropStyle]} pointerEvents='none' />
         <GestureDetector gesture={backdropTapGesture}>
           {/* collapsable={false}: this view has no paint properties of its own (no background,
           no animated style), exactly the shape React Native's view-flattening optimizer removes
-          from the native tree on native platforms — leaving the GestureDetector above with no real
+          from the native tree on native platforms - leaving the GestureDetector above with no real
           view left to attach its tap recognizer to, so it would silently never receive a touch.
-          backdropTapAreaStyle shrinks this view's own bounds to exclude the panel's footprint —
+          backdropTapAreaStyle shrinks this view's own bounds to exclude the panel's footprint -
           see its own comment above for why that matters specifically on web. */}
           <Animated.View collapsable={false} style={[StyleSheet.absoluteFill, backdropTapAreaStyle]} />
         </GestureDetector>
       </Animated.View>
-      {/* panelClip is a NEW, unconditional clipping ancestor around the panel — NOT the same box as
+      {/* panelClip is a NEW, unconditional clipping ancestor around the panel - NOT the same box as
           drawerOuterStyle/styles.drawer, and deliberately not itself transformed. drawerOuterStyle
           carries the open/closed translate (drawerStyle) and is anchored flush to its edge at its
-          FULL maxEffectiveSize (sizeStyle) — so a "closed" panel is never actually removed from the
+          FULL maxEffectiveSize (sizeStyle) - so a "closed" panel is never actually removed from the
           tree, only slid to closedOffset, which for side='right'/'bottom' lands at a POSITIVE
-          coordinate just past the visible edge (see geometry.ts's getClosedOffset — left/top land at
+          coordinate just past the visible edge (see geometry.ts's getClosedOffset - left/top land at
           NEGATIVE coordinates instead, which ordinary page scroll can't reach, which is why this only
           ever showed up on right/bottom drawers). With nothing upstream constraining that positive
           offset, react-native-web's host page treats the translated-but-still-full-size panel as real
-          document content sitting just outside the viewport, which grows the page's scrollable area —
+          document content sitting just outside the viewport, which grows the page's scrollable area -
           scrolling into it reveals a fully rendered "closed" panel. Adding overflow:'hidden' directly
           to styles.drawer itself is NOT the fix: that's the same box the transform moves, so its own
           clip region would travel with it and cut off the handle strip below, which is deliberately
           positioned outside drawerOuterStyle's bounds (see its own comment). panelClip instead fills
           the drawer's whole mount area (never itself transformed) and clips ITS bounds, which stay
-          fixed regardless of where the translated panel inside it currently sits — so the handle strip
+          fixed regardless of where the translated panel inside it currently sits - so the handle strip
           (well within panelClip's much larger box) is unaffected, while a closed panel translated past
           panelClip's edge is clipped from paint and stops contributing to page scroll extent.
           pointerEvents='box-none': this wrapper spans the full mount area purely to establish the clip
-          boundary — it must never itself catch a touch, only its real content underneath should.
+          boundary - it must never itself catch a touch, only its real content underneath should.
           zIndex + 1 (the panel's own tier) ON panelClip itself: react-native-web gives every View
           z-index 0, which makes panelClip a stacking context of its own, so the panel's zIndex + 1
           only ranks it inside panelClip. Without a tier here, the backdrop (zIndex, a sibling of
@@ -535,13 +535,13 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
             <GestureDetector gesture={handleGesture}>
               {/* pointerEvents mirrors handleGesture's own .enabled(open) above, the same way the
                   backdrop's tap-catcher mirrors backdropTapGesture's .enabled(open && blockingBackdrop)
-                  just above — handleVisibilityStyle's opacity already fades this strip out once the
+                  just above - handleVisibilityStyle's opacity already fades this strip out once the
                   panel's closed, but opacity alone doesn't stop hit-testing on web/Android (unlike iOS,
-                  which excludes opacity-0 views from hit-testing regardless of pointerEvents — see the
+                  which excludes opacity-0 views from hit-testing regardless of pointerEvents - see the
                   backdrop tint's own comment on that asymmetry). Left at 'auto' while closed, this
-                  48px-wide strip sits at zIndex+2 flush against the screen edge closest to `side` —
+                  48px-wide strip sits at zIndex+2 flush against the screen edge closest to `side` -
                   easy to land a consumer's own edge-anchored chrome (an app bar icon, say) in that same
-                  band — and swallows taps meant for whatever's underneath it despite being invisible
+                  band - and swallows taps meant for whatever's underneath it despite being invisible
                   AND, since the gesture itself is disabled here too, unable to do anything with them
                   either. */}
               <Animated.View style={[styles.handleStrip, handleStripSizeStyle, handleStripEdgeStyle, handleStripPaddingStyle, webCursorStyle, handleVisibilityStyle, handleStripInteractionStyle]}>{showHandle && <View style={[styles.handlePill, handlePillStyle, { backgroundColor: colors.surface }]} />}</Animated.View>
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'absolute'
   },
-  // See the comment above <View style={styles.panelClip}> in the render — the unconditional clip
+  // See the comment above <View style={styles.panelClip}> in the render - the unconditional clip
   // ancestor that keeps a translated-off-screen "closed" panel from inflating page scroll extent.
   panelClip: {
     bottom: 0,

@@ -82,7 +82,7 @@ describe('DrawerEdgeSwipe', () => {
     expect(lastGesture().enabled).toBe(false)
   })
 
-  // RNGH's own gesture.enabled(enabled) only stops the Pan gesture from recognizing a touch — it
+  // RNGH's own gesture.enabled(enabled) only stops the Pan gesture from recognizing a touch - it
   // doesn't stop the underlying View from being hit-tested on web. Without pointerEvents tracking
   // enabled too, a caller passing enabled={false} to shed the edge-swipe behavior would still be left
   // with this zone as an invisible, unconditionally opaque strip along the edge, silently swallowing
@@ -168,7 +168,7 @@ describe('DrawerEdgeSwipe', () => {
 
     expect(onOpen).toHaveBeenCalledTimes(1)
     // Lands at restOffset (800 - 300 = 500), not 0: DrawerEdgeSwipe only opens to rest, matching
-    // Drawer's own tap-to-open behavior — expanding further is only ever done via Drawer's handle.
+    // Drawer's own tap-to-open behavior - expanding further is only ever done via Drawer's handle.
     expect(translateOffset.value).toBe(500)
   })
 
@@ -185,7 +185,7 @@ describe('DrawerEdgeSwipe', () => {
   })
 
   describe('edgeInset', () => {
-    it('shrinks the basis a percentage maxHeight resolves against, capping the clamp range short of the true edge — kept in sync with a same-configured Drawer', () => {
+    it('shrinks the basis a percentage maxHeight resolves against, capping the clamp range short of the true edge - kept in sync with a same-configured Drawer', () => {
       const translateOffset = sharedValue(750)
       render(<DrawerEdgeSwipe edgeInset={50} height='50%' maxHeight='100%' onOpen={jest.fn()} side='bottom' translateOffset={translateOffset} />)
 
