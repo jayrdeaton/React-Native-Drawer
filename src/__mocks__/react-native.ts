@@ -12,8 +12,9 @@ export { StyleSheet }
 
 export const View = jest.fn(stub)
 
-// Only .OS is read anywhere in this package (Drawer.tsx's webCursorStyle): defaulted to 'ios' so
-// that branch resolves the same way it would on a real native device, not the web-only cursor path.
+// Only .OS is read anywhere in this package (the webCursorStyles and Drawer.tsx's clipOverflowStyle):
+// defaulted to 'ios' so those branches resolve the same way they would on a real native device, not
+// the web-only paths. Specs covering a web path set it to 'web' and restore it afterward.
 export const Platform = { OS: 'ios' as 'android' | 'ios' | 'web' }
 
 // addEventListener is a jest.fn so specs can pull the registered handler off its mock.calls (the

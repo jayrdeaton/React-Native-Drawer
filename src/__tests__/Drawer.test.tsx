@@ -1,7 +1,7 @@
 import { BlurView, useBlur } from '@rific/auto-paper'
 import { act, render, type RenderResult, screen } from '@testing-library/react'
 import { type ReactElement } from 'react'
-import { useWindowDimensions, View } from 'react-native'
+import { Platform, useWindowDimensions, View } from 'react-native'
 import { GestureDetector } from 'react-native-gesture-handler'
 import Animated, { type SharedValue, withSpring } from 'react-native-reanimated'
 
@@ -405,6 +405,71 @@ describe('Drawer', () => {
       )
 
       expect(drawerPanelStyle().width).toBe(300)
+    })
+  })
+
+  describe('geometry changing under the panel (window resized)', () => {
+    const withWindowWidth = (width: number) => MockUseWindowDimensions.mockReturnValue({ fontScale: 1, height: 800, scale: 1, width })
+    afterEach(() => withWindowWidth(400))
+
+    it('jumps a closed panel to its new closed offset instead of springing, so a panel that grew never peeks in past the edge', () => {
+      withWindowWidth(360)
+      const onClosed = jest.fn()
+      const translateOffset = sharedValue(-360)
+      const ui = () => (
+        <Drawer onClose={jest.fn()} onClosed={onClosed} open={false} translateOffset={translateOffset} width={380}>
+          <span>drawer content</span>
+        </Drawer>
+      )
+      const { rerender } = renderDrawer(ui())
+      MockWithSpring.mockClear()
+
+      withWindowWidth(375)
+      rerender(ui())
+
+      expect(translateOffset.value).toBe(-375)
+      expect(MockWithSpring).not.toHaveBeenCalled()
+      // The jump cancels any close spring still in flight (whose own callback then reports
+      // unfinished), so it reports the panel closed itself.
+      expect(onClosed).toHaveBeenCalledTimes(1)
+    })
+
+    it('still springs a real close, even when the window resizes in the same render', () => {
+      withWindowWidth(360)
+      const translateOffset = sharedValue(0)
+      const { rerender } = renderDrawer(
+        <Drawer onClose={jest.fn()} open translateOffset={translateOffset} width={380}>
+          <span>drawer content</span>
+        </Drawer>
+      )
+      MockWithSpring.mockClear()
+
+      withWindowWidth(375)
+      rerender(
+        <Drawer onClose={jest.fn()} open={false} translateOffset={translateOffset} width={380}>
+          <span>drawer content</span>
+        </Drawer>
+      )
+
+      expect(MockWithSpring).toHaveBeenCalledWith(-375, expect.anything(), expect.any(Function))
+    })
+
+    it('keeps an open panel flush at its rest offset as the window narrows under it', () => {
+      withWindowWidth(375)
+      const translateOffset = sharedValue(0)
+      const ui = () => (
+        <Drawer onClose={jest.fn()} open translateOffset={translateOffset} width={380}>
+          <span>drawer content</span>
+        </Drawer>
+      )
+      const { rerender } = renderDrawer(ui())
+      MockAnimatedView.mockClear()
+
+      withWindowWidth(360)
+      rerender(ui())
+
+      expect(translateOffset.value).toBe(0)
+      expect(drawerPanelStyle().width).toBe(360)
     })
   })
 
@@ -1067,6 +1132,52 @@ describe('Drawer', () => {
       )
 
       expect(drawerPanelStyle().overflow).toBeUndefined()
+    })
+
+    // A web overflow:hidden box is still a scroll container: a centered scrollIntoView on anything in
+    // a full-window panel scrolled panelClip by the handle strip's 28px of off-screen overflow,
+    // shifting the open panel off its edge (see clipOverflowStyle in Drawer.tsx). 'clip' isn't a
+    // scroll container, so nothing can scroll it.
+    describe('on web', () => {
+      const platform = Platform as { OS: string }
+      beforeEach(() => {
+        platform.OS = 'web'
+      })
+      afterEach(() => {
+        platform.OS = 'ios'
+      })
+
+      it("clips with overflow:'clip', which the browser can't scroll, instead of 'hidden'", () => {
+        renderDrawer(
+          <Drawer onClose={jest.fn()} open side='left' width={300}>
+            <span>drawer content</span>
+          </Drawer>
+        )
+
+        expect(flattenStyle(panelClipCall()![0].style).overflow).toBe('clip')
+      })
+
+      it("clips contentSize's wrapper with overflow:'clip' too, since content taller than the window overflows it at rest", () => {
+        renderDrawer(
+          <Drawer contentSize onClose={jest.fn()} open side='bottom'>
+            <span>drawer content</span>
+          </Drawer>
+        )
+
+        const contentClipCall = MockView.mock.calls.find((call) => flattenStyle(call[0].style).flexDirection === 'column')
+        expect(flattenStyle(contentClipCall![0].style).overflow).toBe('clip')
+      })
+    })
+
+    it("keeps contentSize's wrapper at overflow:'hidden' on native", () => {
+      renderDrawer(
+        <Drawer contentSize onClose={jest.fn()} open side='bottom'>
+          <span>drawer content</span>
+        </Drawer>
+      )
+
+      const contentClipCall = MockView.mock.calls.find((call) => flattenStyle(call[0].style).flexDirection === 'column')
+      expect(flattenStyle(contentClipCall![0].style).overflow).toBe('hidden')
     })
   })
 

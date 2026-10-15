@@ -176,13 +176,34 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   // useAnimatedStyle, so it only restarts its transition when effectiveSize actually changes.
   const animatedSize = useSharedValue(effectiveSize)
 
+  // The `open` the effect below last ran for, so it can tell a real open/close (which springs) from
+  // the geometry changing under a closed panel (which jumps, see below). null until the first run,
+  // so mounting counts as a change and springs exactly as before.
+  const lastOpenRef = useRef<boolean | null>(null)
+
+  // react-hooks/immutability misreads the translateOffset.value writes here (a Reanimated
+  // SharedValue, not a prop reassignment) once this effect also writes lastOpenRef.
+  // eslint-disable-next-line react-hooks/immutability
   useEffect(() => {
+    const openChanged = lastOpenRef.current !== open
+    lastOpenRef.current = open
     if (open) {
       // Rests at restOffset (== 0, fully expanded, when there's no maxHeight/maxWidth - identical
       // to before), not always 0: an expandable sheet opens to its rest size, not its max size.
       translateOffset.value = withSpring(restOffset, SPRING, (finished) => {
         if (finished && onOpened) runOnJS(onOpened)()
       })
+      return
+    }
+    if (!openChanged) {
+      // Still closed, but closedOffset moved (the window resized, or contentSize re-measured): jump
+      // to it rather than spring. The panel's box takes its new size at once, so springing a grown
+      // panel out from its old, smaller offset left the difference peeking in past the screen edge
+      // for the whole spring (15px of a closed window-wide drawer when the window went 360 to 375).
+      // A jump also cancels a close spring still in flight, whose callback then reports unfinished,
+      // so onClosed is called here instead (a resize while settled closed re-fired it before too).
+      translateOffset.value = closedOffset
+      onClosed?.()
       return
     }
     translateOffset.value = withSpring(closedOffset, SPRING, (finished) => {
@@ -280,6 +301,20 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   // structure as a CSS accordion expand/collapse either way.
   const fillStyle: StyleProp<ViewStyle> = StyleSheet.absoluteFill
 
+  // The overflow for both boxes here that exist only to clip (panelClip, and contentSize's clip
+  // wrapper below): 'clip' on web, 'hidden' on native. A web overflow:hidden box is still a scroll
+  // container: it hides the scrollbar, but scrollIntoView, focus and find-in-page can all still
+  // scroll it, and nothing ever scrolls it back. A full-window panel always leaves panelClip 28px of
+  // hidden overflow (the handle strip hangs HANDLE_STRIP_THICKNESS past the panel's far edge,
+  // off-screen), so a single centered scrollIntoView on a button inside the panel (browser
+  // automation clicking it, for one) scrolled panelClip by those 28px: the open panel sat 28px off
+  // its edge, its content cut off, with the screen underneath showing through on the far side.
+  // 'clip' paints the same clip but isn't a scroll container, so nothing can scroll it. Native views
+  // clip without ever scrolling, so 'hidden' (the only clip RN's own types allow, hence the cast)
+  // stays there. The value is computed directly, not left undefined on native: a later undefined
+  // overflow in a style array overrides an earlier 'hidden' once flattened.
+  const clipOverflowStyle = { overflow: Platform.OS === 'web' ? 'clip' : 'hidden' } as ViewStyle
+
   const fill =
     resolvedBlur && autoPaper ? (
       contentSize ? (
@@ -318,9 +353,9 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   // is checked structurally against Animated.View's own `style` prop below, whose type (reanimated's
   // AnimatedStyle<ViewStyle>) already accounts for that handle.
   const drawerOuterStyle = contentSize ? [styles.drawer, positionStyle, drawerStyle, animatedSizeStyle, { zIndex: zIndex + 1 }] : [styles.drawer, positionStyle, sizeStyle, drawerStyle, { zIndex: zIndex + 1 }]
-  // contentSize's clip (overflow: hidden) + flex axis, previously on drawerOuterStyle itself, now
+  // contentSize's clip (clipOverflowStyle) + flex axis, previously on drawerOuterStyle itself, now
   // live on this inner wrapper instead, so the outer stays unclipped for the handle strip's sake.
-  const contentClipStyle: StyleProp<ViewStyle> = [fillStyle, styles.clip, { flexDirection: vertical ? 'column' : 'row' }]
+  const contentClipStyle: StyleProp<ViewStyle> = [fillStyle, clipOverflowStyle, { flexDirection: vertical ? 'column' : 'row' }]
 
   // Dismiss-and-expand handle: a strip pinned to the edge closest to the closed direction (the edge
   // the panel slides back toward), gesture-matched to `side` the same way DrawerEdgeSwipe is. With no
@@ -373,6 +408,8 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
     .onUpdate((event) => {
       'worklet'
       const translation = vertical ? event.translationY : event.translationX
+      // Same SharedValue false positive as the open/close effect above (see its comment).
+      // eslint-disable-next-line react-hooks/immutability
       translateOffset.value = Math.min(clampMax, Math.max(clampMin, gestureStartOffset.value + translation))
     })
     .onEnd((event) => {
@@ -405,6 +442,8 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
         closing = progress > 1 / 3 || velocityD > VELOCITY_THRESHOLD
         target = closing ? closedOffset : restOffset
       }
+      // Same SharedValue false positive as the open/close effect above (see its comment).
+      // eslint-disable-next-line react-hooks/immutability
       translateOffset.value = withSpring(target, SPRING)
       if (closing) runOnJS(onClose)()
     })
@@ -522,8 +561,9 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
           z-index 0, which makes panelClip a stacking context of its own, so the panel's zIndex + 1
           only ranks it inside panelClip. Without a tier here, the backdrop (zIndex, a sibling of
           panelClip) painted over the whole panel, tint included, and an open drawer's own content
-          read as dimmed and disabled. */}
-      <View pointerEvents='box-none' style={[styles.panelClip, { zIndex: zIndex + 1 }]}>
+          read as dimmed and disabled. Its overflow is clipOverflowStyle, never a plain 'hidden': see
+          that style's comment for how a web overflow:hidden box got scrolled off its edge. */}
+      <View pointerEvents='box-none' style={[styles.panelClip, clipOverflowStyle, { zIndex: zIndex + 1 }]}>
         <Animated.View style={drawerOuterStyle}>
           {/* pointerEvents='none': purely decorative, drawn outside the panel's own box (a directional
               box-shadow never paints over the box's own content area), so it has no business
@@ -589,9 +629,6 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0
   },
-  clip: {
-    overflow: 'hidden'
-  },
   drawer: {
     position: 'absolute'
   },
@@ -605,10 +642,10 @@ const styles = StyleSheet.create({
   },
   // See the comment above <View style={styles.panelClip}> in the render - the unconditional clip
   // ancestor that keeps a translated-off-screen "closed" panel from inflating page scroll extent.
+  // Its overflow comes from clipOverflowStyle in the render, since it differs per platform.
   panelClip: {
     bottom: 0,
     left: 0,
-    overflow: 'hidden',
     position: 'absolute',
     right: 0,
     top: 0
