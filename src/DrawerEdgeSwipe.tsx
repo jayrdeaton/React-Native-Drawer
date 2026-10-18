@@ -1,3 +1,4 @@
+import { callWorkletCallback, useWorkletCallback } from '@rific/core'
 import { Platform, StyleSheet, View, type ViewStyle } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { runOnJS, SharedValue, withSpring } from 'react-native-reanimated'
@@ -41,6 +42,8 @@ export type DrawerEdgeSwipeProps = {
 }
 
 export const DrawerEdgeSwipe = ({ edgeInset = 0, enabled = true, height = 300, insetBottom = 0, insetLeft = 0, insetRight = 0, insetTop = 0, maxHeight, maxWidth, onOpen, side = 'left', translateOffset, width = 300 }: DrawerEdgeSwipeProps) => {
+  // See Drawer.tsx: the worklet calls callWorkletCallback by key, never the component's own onOpen.
+  const openKey = useWorkletCallback(onOpen)
   const vertical = isVerticalSide(side)
   const { closedOffset, effectiveSize, restOffset } = useDrawerSize(side, vertical ? height : width, vertical ? maxHeight : maxWidth, edgeInset)
   const openDirection = getOpenDirection(side)
@@ -74,7 +77,7 @@ export const DrawerEdgeSwipe = ({ edgeInset = 0, enabled = true, height = 300, i
         // see onUpdate's comment above -- same SharedValue false positive
         // eslint-disable-next-line react-hooks/immutability
         translateOffset.value = withSpring(restOffset, SPRING)
-        runOnJS(onOpen)()
+        runOnJS(callWorkletCallback)(openKey)
       } else {
         translateOffset.value = withSpring(closedOffset, SPRING)
       }

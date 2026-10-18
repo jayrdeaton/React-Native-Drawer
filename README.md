@@ -2,6 +2,8 @@
 
 Sliding drawer/sheet for React Native. Spring-animated, theme-aware (reads colors from `react-native-paper`), and opens either by calling an action or by swiping in from the screen edge. Slides in from any of the four edges (`left`/`right` for a nav/settings drawer, `top`/`bottom` for a sheet), using the same mechanism either way. One `createDrawer()` call per drawer instance, so a left nav drawer and a bottom sheet stay fully independent.
 
+**[Live demo](https://rific.jaydeaton.com/demos/drawer)**
+
 ## Install
 
 ```sh

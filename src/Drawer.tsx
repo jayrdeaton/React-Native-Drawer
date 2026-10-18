@@ -1,3 +1,4 @@
+import { callWorkletCallback, useWorkletCallback } from '@rific/core'
 import { ReactNode, useEffect, useRef, useState } from 'react'
 import { LayoutChangeEvent, Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
@@ -140,6 +141,9 @@ export type DrawerProps = {
 
 export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, children, contentSize = false, dismissible = true, edgeInset = 0, height = 300, maxHeight, maxWidth, onClose, onClosed, onMeasure, onOpened, open, panelShadow, side = 'left', showHandle = true, translateOffset: externalTranslateOffset, width = 300, zIndex = 50 }: DrawerProps) => {
   const { colors } = useTheme()
+  // Worklets below never get onClose itself: react-native-worklets holds a runOnJS target natively for as long as
+  // the worklet lives, which pinned the whole drawer. They call the module-level callWorkletCallback by key.
+  const closeKey = useWorkletCallback(onClose)
   const vertical = isVerticalSide(side)
   const openDirection = getOpenDirection(side)
   const closeDirection = -openDirection as 1 | -1
@@ -396,7 +400,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   const backdropTapGesture = Gesture.Tap()
     .enabled(open && blockingBackdrop)
     .onEnd((_event, success) => {
-      if (success) runOnJS(onClose)()
+      if (success) runOnJS(callWorkletCallback)(closeKey)
     })
 
   const handleGesture = handleAxisGesture
@@ -445,7 +449,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
       // Same SharedValue false positive as the open/close effect above (see its comment).
       // eslint-disable-next-line react-hooks/immutability
       translateOffset.value = withSpring(target, SPRING)
-      if (closing) runOnJS(onClose)()
+      if (closing) runOnJS(callWorkletCallback)(closeKey)
     })
 
   // The whole strip along the closed-direction edge is grabbable, flush against it, not just the
