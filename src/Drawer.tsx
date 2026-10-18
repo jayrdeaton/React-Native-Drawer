@@ -3,7 +3,8 @@ import { ReactNode, useEffect, useRef, useState } from 'react'
 import { LayoutChangeEvent, Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { useTheme } from 'react-native-paper'
-import Animated, { runOnJS, SharedValue, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated'
+import Animated, { SharedValue, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated'
+import { scheduleOnRN } from 'react-native-worklets'
 
 import { getDrawerConfig } from './DrawerConfig'
 import { type DrawerDimension, type DrawerSide, getOpenDirection, isVerticalSide } from './geometry'
@@ -195,7 +196,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
       // Rests at restOffset (== 0, fully expanded, when there's no maxHeight/maxWidth - identical
       // to before), not always 0: an expandable sheet opens to its rest size, not its max size.
       translateOffset.value = withSpring(restOffset, SPRING, (finished) => {
-        if (finished && onOpened) runOnJS(onOpened)()
+        if (finished && onOpened) scheduleOnRN(onOpened)
       })
       return
     }
@@ -211,7 +212,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
       return
     }
     translateOffset.value = withSpring(closedOffset, SPRING, (finished) => {
-      if (finished && onClosed) runOnJS(onClosed)()
+      if (finished && onClosed) scheduleOnRN(onClosed)
     })
     // onOpened/onClosed deliberately excluded: both are plain closures (DrawerInstanceProvider passes a
     // fresh function every render), and including them would restart this spring from its current
@@ -400,7 +401,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
   const backdropTapGesture = Gesture.Tap()
     .enabled(open && blockingBackdrop)
     .onEnd((_event, success) => {
-      if (success) runOnJS(callWorkletCallback)(closeKey)
+      if (success) scheduleOnRN(callWorkletCallback, closeKey)
     })
 
   const handleGesture = handleAxisGesture
@@ -449,7 +450,7 @@ export const Drawer = ({ backdropOpacity = 0.45, blockingBackdrop = true, blur, 
       // Same SharedValue false positive as the open/close effect above (see its comment).
       // eslint-disable-next-line react-hooks/immutability
       translateOffset.value = withSpring(target, SPRING)
-      if (closing) runOnJS(callWorkletCallback)(closeKey)
+      if (closing) scheduleOnRN(callWorkletCallback, closeKey)
     })
 
   // The whole strip along the closed-direction edge is grabbable, flush against it, not just the

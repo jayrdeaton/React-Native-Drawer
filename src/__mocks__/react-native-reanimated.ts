@@ -22,11 +22,6 @@ export const withSpring = jest.fn((toValue: number, _config?: unknown, _callback
 
 export const withTiming = (toValue: number) => toValue
 
-export const runOnJS =
-  <Args extends unknown[], Return>(fn: (...args: Args) => Return) =>
-  (...args: Args) =>
-    fn(...args)
-
 const Animated = {
   View: jest.fn(stub)
 }

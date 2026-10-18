@@ -1,7 +1,8 @@
 import { callWorkletCallback, useWorkletCallback } from '@rific/core'
 import { Platform, StyleSheet, View, type ViewStyle } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import { runOnJS, SharedValue, withSpring } from 'react-native-reanimated'
+import { SharedValue, withSpring } from 'react-native-reanimated'
+import { scheduleOnRN } from 'react-native-worklets'
 
 import { type DrawerDimension, type DrawerSide, getOpenDirection, isVerticalSide } from './geometry'
 import { useDrawerSize } from './useDrawerSize'
@@ -77,7 +78,7 @@ export const DrawerEdgeSwipe = ({ edgeInset = 0, enabled = true, height = 300, i
         // see onUpdate's comment above -- same SharedValue false positive
         // eslint-disable-next-line react-hooks/immutability
         translateOffset.value = withSpring(restOffset, SPRING)
-        runOnJS(callWorkletCallback)(openKey)
+        scheduleOnRN(callWorkletCallback, openKey)
       } else {
         translateOffset.value = withSpring(closedOffset, SPRING)
       }
