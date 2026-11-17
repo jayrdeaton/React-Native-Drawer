@@ -13,8 +13,10 @@ npm install @rific/drawer
 **Peer dependencies:**
 
 ```sh
-npm install react-native-gesture-handler react-native-reanimated react-native-paper
+npm install @rific/core react-native-gesture-handler react-native-reanimated react-native-worklets react-native-paper
 ```
+
+`@rific/core` (0.5.0+) lets the drawer's gestures call back into it without pinning it in memory, and `react-native-worklets` (0.5.0+, which Reanimated 4 already needs) carries those calls. React Native 0.83+, Reanimated 4+ and gesture-handler 2.20+ (2 or 3).
 
 Your app's root must already be wrapped in `GestureHandlerRootView` (from `react-native-gesture-handler`). This package doesn't add its own, since only one should ever wrap the whole app.
 
@@ -168,7 +170,7 @@ import * as AutoPaper from '@rific/auto-paper'
 configureDrawer({ autoPaper: AutoPaper })
 ```
 
-Either way this is one-time setup, not reactive state: call it once, before anything renders. Every `Drawer`, from any `createDrawer()` instance, picks it up automatically; there's nothing to pass per-drawer.
+Either way this is one-time setup, not reactive state: call it once, before anything renders. Every `Drawer`, from any `createDrawer()` instance, picks it up automatically; there's nothing to pass per-drawer. `getDrawerConfig()` returns what was configured (a `DrawerConfig`, `{ autoPaper? }`).
 
 Pass `blur` wherever suits your app: to `createDrawer()` (a fixed default for that drawer), to `DrawerInstanceProvider` (overriding the `createDrawer()` default for that mount), or directly to `Drawer` if you're using it standalone. If you don't pass `blur` at all, the panel falls back to `@rific/auto-paper`'s own global `settings.blur` user preference via `useBlur()`.
 
@@ -182,7 +184,7 @@ Only the panel surface blurs; the backdrop behind it stays solid, same as today.
 
 `Drawer` (the sliding panel and backdrop) and `DrawerEdgeSwipe` (the edge gesture zone) are also exported directly, for apps that want to manage the open/closed state and shared value themselves instead of using `createDrawer()`. Both take a `translateOffset` prop, a `SharedValue<number>` holding the panel's offset along its axis (`translateX` for `left`/`right`, `translateY` for `top`/`bottom`), so `DrawerEdgeSwipe`'s gesture and `Drawer`'s spring animation can share the same value.
 
-Seed that shared value at the drawer's closed offset with `useDrawerSize`, the same hook `Drawer`, `DrawerEdgeSwipe` and `createDrawer()` resolve their own geometry with, rather than negating the size by hand: a hand-negated `-380` disagrees with a panel that's been capped to a narrower window (see [Usage](#usage)). Pass it the same `side`, size, max size and `edgeInset` the `Drawer` gets. Its `effectiveSize` is also the panel's actual rest size in px, for laying out anything sized to the panel itself (a full-width carousel page, say):
+Seed that shared value at the drawer's closed offset with `useDrawerSize`, the same hook `Drawer`, `DrawerEdgeSwipe` and `createDrawer()` resolve their own geometry with, rather than negating the size by hand: a hand-negated `-380` disagrees with a panel that's been capped to a narrower window (see [Usage](#usage)). Pass it the same `side`, size, max size and `edgeInset` the `Drawer` gets. Its `effectiveSize` is also the panel's actual rest size in px, for laying out anything sized to the panel itself (a full-width carousel page, say). It also returns `maxEffectiveSize`, the panel's full size once a max size is resolved (the same as `effectiveSize` without one; see [Expandable sheets](#expandable-sheets)), and `restOffset`, where an open panel rests along its axis: `0` when it opens all the way, otherwise the offset that leaves `effectiveSize` on screen and the rest off it until dragged further:
 
 ```tsx
 import { Drawer, DrawerEdgeSwipe, useDrawerSize } from '@rific/drawer'
@@ -214,5 +216,7 @@ Both also take `maxHeight`/`maxWidth` (see [Expandable sheets](#expandable-sheet
 `DrawerEdgeSwipe` alone also takes `insetTop`/`insetBottom`/`insetLeft`/`insetRight` (all default `0`), which shrink the edge-swipe hitbox's span along its long axis - only the pair perpendicular to `side`'s own strip thickness applies: `insetTop`/`insetBottom` for a `left`/`right` drawer's vertical strip, `insetLeft`/`insetRight` for a `top`/`bottom` drawer's horizontal one; the other pair is ignored. Use these to carve out chrome near the edge - a header or tab bar - that would otherwise have its own taps stolen by a hitbox spanning the full screen. Don't confuse this with `edgeInset` (see [Safe area](#safe-area)): that shrinks the *basis* a percentage size resolves against, on both `Drawer` and `DrawerEdgeSwipe`; these inset props only trim `DrawerEdgeSwipe`'s own hitbox span and have no equivalent on `Drawer` or `createDrawer()`.
 
 `Drawer` also takes an `onClosed?: () => void`, fired once the close spring actually settles rather than the instant `open` flips to `false` (and again whenever a resize moves an already-closed panel to its new closed offset): this is what powers `isVisible` above; drive it yourself the same way if you're managing `open` state by hand. `onOpened?: () => void` is the same idea for the open direction: fired once the panel has actually finished sliding in, e.g. to autofocus a field inside `content` only once it's actually on screen. `createDrawer()` doesn't need it internally (nothing downstream waits on the open side settling the way `isVisible` waits on the close side), so it's only available driving `Drawer` directly.
+
+`Drawer` alone also takes `panelShadow` (default off), a shadow cast by the panel onto what's behind it: `true` for the defaults (2px distance, 8px blur, 30% black), or `{ distance?, blurRadius?, color?, elevation? }` to change any of them. `distance` is a magnitude: the shadow always falls away from the panel's own edge, whichever `side` it's on. `elevation` is Android's native shadow, drawn alongside and defaulting to `blurRadius`. It fades in and out with the panel, so a closed panel sitting flush against the screen edge leaves no line along it. `createDrawer()` doesn't pass it through.
 
 `Drawer` also takes the same `zIndex` prop described in [Stacking multiple drawers](#stacking-multiple-drawers), useful if you're rendering more than one standalone `Drawer` (or mixing standalone `Drawer`s with `createDrawer()` ones) that might be open at the same time.
