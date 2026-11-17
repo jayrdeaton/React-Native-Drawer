@@ -220,3 +220,7 @@ Both also take `maxHeight`/`maxWidth` (see [Expandable sheets](#expandable-sheet
 `Drawer` alone also takes `panelShadow` (default off), a shadow cast by the panel onto what's behind it: `true` for the defaults (2px distance, 8px blur, 30% black), or `{ distance?, blurRadius?, color?, elevation? }` to change any of them. `distance` is a magnitude: the shadow always falls away from the panel's own edge, whichever `side` it's on. `elevation` is Android's native shadow, drawn alongside and defaulting to `blurRadius`. It fades in and out with the panel, so a closed panel sitting flush against the screen edge leaves no line along it. `createDrawer()` doesn't pass it through.
 
 `Drawer` also takes the same `zIndex` prop described in [Stacking multiple drawers](#stacking-multiple-drawers), useful if you're rendering more than one standalone `Drawer` (or mixing standalone `Drawer`s with `createDrawer()` ones) that might be open at the same time.
+
+---
+
+Made by [Infinite Token](https://www.infinitetoken.com), the team behind [Lumber](https://lumber.infinitetoken.com): end-to-end encrypted logging.
